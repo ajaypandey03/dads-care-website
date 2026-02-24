@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 60" width="220" height="60">
+  <!-- Truck icon -->
+  <g transform="translate(4, 8)">
+    <!-- Truck cab -->
+    <rect x="18" y="10" width="20" height="22" rx="2" fill="#1E40AF"/>
+    <!-- Truck body -->
+    <rect x="0" y="14" width="20" height="18" rx="2" fill="#1E40AF"/>
+    <!-- Windshield -->
+    <rect x="20" y="12" width="14" height="10" rx="1" fill="#93C5FD"/>
+    <!-- Truck wheels -->
+    <circle cx="5" cy="34" r="5" fill="#1F2937"/>
+    <circle cx="5" cy="34" r="2.5" fill="#9CA3AF"/>
+    <circle cx="23" cy="34" r="5" fill="#1F2937"/>
+    <circle cx="23" cy="34" r="2.5" fill="#9CA3AF"/>
+    <circle cx="34" cy="34" r="5" fill="#1F2937"/>
+    <circle cx="34" cy="34" r="2.5" fill="#9CA3AF"/>
+    <!-- Orange accent stripe -->
+    <rect x="0" y="22" width="38" height="3" fill="#F97316"/>
+    <!-- Road line -->
+    <line x1="0" y1="40" x2="42" y2="40" stroke="#E5E7EB" strokeWidth="1.5"/>
+  </g>
+
+  <!-- Company name -->
+  <text x="55" y="26" fontFamily="'Segoe UI', Arial, sans-serif" fontWeight="700" fontSize="16" fill="#1E3A8A" letterSpacing="1">DAD&#39;S CARE</text>
+  <text x="55" y="42" fontFamily="'Segoe UI', Arial, sans-serif" fontWeight="400" fontSize="9" fill="#F97316" letterSpacing="2">LOGISTICS SOLUTIONS</text>
+  <!-- Green accent line under tagline -->
+  <rect x="55" y="47" width="100" height="2" rx="1" fill="#16A34A"/>
+</svg>

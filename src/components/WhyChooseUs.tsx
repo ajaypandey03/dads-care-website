@@ -1,4 +1,28 @@
+'use client';
+
+import { useEffect, useRef } from 'react';
+
 export default function WhyChooseUs() {
+  const sectionRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+          }
+        });
+      },
+      { threshold: 0.1 }
+    );
+
+    const items = sectionRef.current?.querySelectorAll('.scroll-fade');
+    items?.forEach((item) => observer.observe(item));
+
+    return () => observer.disconnect();
+  }, []);
+
   const reasons = [
     {
       title: 'Rooted in Trust',
@@ -27,7 +51,7 @@ export default function WhyChooseUs() {
   ];
 
   return (
-    <section className="py-16 bg-white">
+    <section className="py-20 bg-white" ref={sectionRef}>
       <div className="container mx-auto px-4">
         <h2 className="text-3xl md:text-4xl font-bold text-center mb-12 text-gray-800">
           What Makes DAD&apos;S CARE Different?
@@ -37,7 +61,8 @@ export default function WhyChooseUs() {
           {reasons.map((reason, index) => (
             <div
               key={index}
-              className="flex items-start space-x-4 p-4 rounded-lg hover:bg-blue-50 transition-colors"
+              className="scroll-fade flex items-start space-x-4 p-4 rounded-lg hover:bg-blue-50 transition-colors"
+              style={{ transitionDelay: `${index * 80}ms` }}
             >
               <div className="flex-shrink-0">
                 <svg
