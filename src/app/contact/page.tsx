@@ -46,7 +46,7 @@ export default function ContactPage() {
                 </svg>
               </div>
               <h3 className="font-semibold text-gray-800 mb-2">Email</h3>
-              <a href="mailto:info@dads-care.com" className="text-blue-700 hover:text-blue-900">
+              <a href="mailto:info@dadscare.co.in" className="text-blue-700 hover:text-blue-900">
                 info@dads-care.com
               </a>
             </div>

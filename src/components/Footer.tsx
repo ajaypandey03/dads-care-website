@@ -21,7 +21,7 @@ export default function Footer() {
               <strong>Phone:</strong> +91 83093 24525
             </p>
             <p className="text-gray-300">
-              <strong>Email:</strong> info@dads-care.com
+              <strong>Email:</strong> info@dadscare.co.in
             </p>
           </div>
 

@@ -229,11 +229,11 @@ The website is fully responsive and optimized for:
 ## 📞 Contact
 
 **DAD'S CARE Logistics Solutions Pvt. Ltd.**
-- **Email:** info@dads-care.com
+- **Email:** info@dadscare.co.in
 - **Phone:** +91 83093 24525
 - **Address:** A-15/2, Sulabh Awas Yojana, Transport Nagar, Lucknow, U.P. – 226012
 - **GSTIN:** 09AALCD4009J1ZI
 
 ## 🤝 Support
 
-For technical support or inquiries about the website, please contact: info@dads-care.com
+For technical support or inquiries about the website, please contact: info@dadscare.co.in
