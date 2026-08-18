@@ -50,6 +50,15 @@ app:
     velosyss-secret: ${WEBHOOK_VELOSYSS_SECRET:}
     max-clock-skew-seconds: ${WEBHOOK_MAX_SKEW_SEC:300}
 
+  velosyss:
+    # Velosyss's Enterprise REST API — used by VelosyssCommandClient to relay LOCK/UNLOCK
+    # commands. Left blank by default: as of Phase 2, Velosyss doesn't yet support a
+    # LOCK/UNLOCK command type (see "Velosyss-side prerequisites" in the Implementation
+    # Tracker), so every real call fails until that ships. Blank means "not configured" —
+    # the client logs and returns a graceful failure rather than throwing.
+    api-base-url: ${VELOSYSS_API_BASE_URL:}
+    api-key: ${VELOSYSS_API_KEY:}
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html

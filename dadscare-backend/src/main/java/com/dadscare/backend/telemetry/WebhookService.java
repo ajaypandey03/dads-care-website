@@ -1,8 +1,11 @@
 package com.dadscare.backend.telemetry;
 
+import com.dadscare.backend.alert.RulesEngineService;
 import com.dadscare.backend.site.Device;
 import com.dadscare.backend.site.DeviceRepository;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -16,9 +19,10 @@ import org.springframework.transaction.annotation.Transactional;
  * whole, not which of Dad's Care's own customers owns the device), and persists each
  * event as an immutable {@link RawEvent}.
  *
- * <p>Deliberately does NOT run the Rules & Alerts Engine (false-positive correlation,
- * alerting, notifications) — that's Phase 2. This service's only job is trustworthy
- * ingestion.
+ * <p>Once the whole batch is persisted, every {@code LOCK_OPEN}/{@code LOCK_CLOSE} event
+ * is handed to {@link RulesEngineService} — deliberately after the full batch lands, not
+ * per-event mid-loop, so its quick-reclose check can see a LOCK_CLOSE that arrived just
+ * after its LOCK_OPEN in the same push.
  */
 @Slf4j
 @Service
@@ -27,12 +31,14 @@ public class WebhookService {
 
     private final DeviceRepository deviceRepository;
     private final RawEventRepository rawEventRepository;
+    private final RulesEngineService rulesEngineService;
 
     @Transactional
     public IngestResult ingest(LockEventBatch batch) {
         int accepted = 0;
         int duplicates = 0;
         int unknownDevices = 0;
+        List<RawEvent> lockStateEvents = new ArrayList<>();
 
         for (LockEventPayload event : batch.events()) {
             if (rawEventRepository.existsByVelosyssEventId(event.eventId())) {
@@ -50,15 +56,24 @@ public class WebhookService {
                 continue;
             }
 
-            persist(device, event);
+            RawEvent raw = persist(device, event);
             updateDeviceLiveState(device, event);
             accepted++;
+
+            if (raw.getEventType() == RawEvent.EventType.LOCK_OPEN
+                    || raw.getEventType() == RawEvent.EventType.LOCK_CLOSE) {
+                lockStateEvents.add(raw);
+            }
+        }
+
+        for (RawEvent event : lockStateEvents) {
+            rulesEngineService.evaluate(event);
         }
 
         return new IngestResult(accepted, duplicates, unknownDevices);
     }
 
-    private void persist(Device device, LockEventPayload event) {
+    private RawEvent persist(Device device, LockEventPayload event) {
         RawEvent raw = new RawEvent();
         raw.setOrganization(device.getOrganization());
         raw.setDevice(device);
@@ -74,7 +89,7 @@ public class WebhookService {
         raw.setSourceSensor(event.sourceSensor());
         raw.setEventTimestamp(event.eventTimestamp());
         raw.setReceivedAt(Instant.now());
-        rawEventRepository.save(raw);
+        return rawEventRepository.save(raw);
     }
 
     private void updateDeviceLiveState(Device device, LockEventPayload event) {
