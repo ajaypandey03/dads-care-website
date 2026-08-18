@@ -48,4 +48,8 @@ public class User extends BaseEntity {
 
     @Column(nullable = false)
     private String status = "ACTIVE";
+
+    /** Expo push token from dadscare-mobile, if the user has ever registered one. Null until then. */
+    @Column(name = "push_token")
+    private String pushToken;
 }

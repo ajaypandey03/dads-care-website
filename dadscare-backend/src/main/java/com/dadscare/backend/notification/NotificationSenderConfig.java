@@ -3,14 +3,13 @@ package com.dadscare.backend.notification;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/** Registers a {@link LoggingNotificationSender} for every channel — see its javadoc. */
+/**
+ * Registers a {@link LoggingNotificationSender} for every channel except PUSH, which has
+ * a real implementation ({@link ExpoPushSender}, registered as its own {@code @Component}
+ * since it needs no stub — see its javadoc).
+ */
 @Configuration
 public class NotificationSenderConfig {
-
-    @Bean
-    NotificationChannelSender pushSender() {
-        return new LoggingNotificationSender(NotificationChannel.PUSH);
-    }
 
     @Bean
     NotificationChannelSender smsSender() {
