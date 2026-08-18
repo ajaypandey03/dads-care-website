@@ -1,5 +1,6 @@
 package com.dadscare.backend.unlock;
 
+import com.dadscare.backend.forms.GodownFormService;
 import com.dadscare.backend.site.Device;
 import com.dadscare.backend.site.DeviceRepository;
 import com.dadscare.backend.tenant.TenantContext;
@@ -14,10 +15,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Creates and relays {@link UnlockRequest}s. On submit, the app calls this with a
- * (Godown form is handled entirely client-side in Phase 4 — this service only owns the
- * lock-control half). The request is persisted <em>before</em> the Velosyss call, so even
- * a failed relay leaves an audit trail, and the record {@link
+ * Creates and relays {@link UnlockRequest}s, persisting any submitted godown form data
+ * (stock/trucks/labor/custom fields — see {@link GodownFormService}) in the same
+ * transaction. The request is persisted <em>before</em> the Velosyss call, so even a
+ * failed relay leaves an audit trail, and the record {@link
  * com.dadscare.backend.alert.RulesEngineService} needs already exists the moment the
  * command is (successfully) sent — never reconstructed after the telemetry arrives.
  */
@@ -29,6 +30,7 @@ public class UnlockRequestService {
     private final DeviceRepository deviceRepository;
     private final UserRepository userRepository;
     private final VelosyssCommandClient velosyssCommandClient;
+    private final GodownFormService godownFormService;
 
     @Transactional
     public UnlockRequestDto create(Long deviceId, CreateUnlockRequestRequest request) {
@@ -50,6 +52,8 @@ public class UnlockRequestService {
         unlockRequest.setVelosyssRequestId(UUID.randomUUID().toString());
         unlockRequest.setStatus(UnlockRequestStatus.PENDING);
         unlockRequestRepository.save(unlockRequest);
+
+        godownFormService.createIfPresent(unlockRequest, device.getOrganization(), request);
 
         relay(unlockRequest, device);
 

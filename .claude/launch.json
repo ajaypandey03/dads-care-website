@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dadscare-mobile-web",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd dadscare-mobile && npx expo start --web --port 8092"],
+      "port": 8092
+    }
+  ]
+}

@@ -10,6 +10,8 @@ public interface DeviceRepository extends JpaRepository<Device, Long> {
 
     Optional<Device> findByIdAndOrganizationId(Long id, Long organizationId);
 
+    Optional<Device> findByShutterUnitId(Long shutterUnitId);
+
     /**
      * Looked up on every inbound webhook event, deliberately NOT tenant-scoped — the
      * device's own {@code organizationId} is exactly what tells us which tenant the
