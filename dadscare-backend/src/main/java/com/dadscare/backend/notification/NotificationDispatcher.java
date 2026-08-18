@@ -32,13 +32,14 @@ public class NotificationDispatcher {
     private final UserRepository userRepository;
     private final NotificationRepository notificationRepository;
     private final List<NotificationChannelSender> senders;
+    private final AlertMessageTemplate alertMessageTemplate;
 
     @Transactional
     public void dispatch(Alert alert) {
         Map<NotificationChannel, NotificationChannelSender> sendersByChannel =
                 senders.stream().collect(Collectors.toMap(NotificationChannelSender::channel, Function.identity()));
 
-        String body = AlertMessageTemplate.build(alert);
+        String body = alertMessageTemplate.build(alert);
 
         List<User> recipients = userRepository.findAllByOrganizationId(alert.getOrganization().getId()).stream()
                 .filter(u -> u.getRole() == Role.ORG_ADMIN || u.getRole() == Role.SITE_MANAGER)
