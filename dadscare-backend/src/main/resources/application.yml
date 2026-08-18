@@ -1,0 +1,65 @@
+spring:
+  application:
+    name: dadscare-backend
+
+  datasource:
+    # Port default (3308) matches docker-compose.yml — deliberately non-standard because
+    # 3306 is already used by another local dev stack on this machine.
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3308}/${DB_NAME:dadscare}?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: ${DB_USERNAME:dadscare}
+    password: ${DB_PASSWORD:dadscare}
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      # Flyway owns the schema — Hibernate never creates/alters tables, even locally.
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: false
+    show-sql: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      # Port default (6381) matches docker-compose.yml — 6379 is already used by another
+      # local dev stack on this machine.
+      port: ${REDIS_PORT:6381}
+      password: ${REDIS_PASSWORD:}
+
+server:
+  port: ${SERVER_PORT:8090}
+
+app:
+  jwt:
+    # openssl rand -hex 64
+    secret: ${JWT_SECRET:dev-only-secret-change-me-dev-only-secret-change-me-dev-only}
+    access-token-ttl-minutes: ${JWT_ACCESS_TTL_MIN:60}
+
+  webhook:
+    # HMAC-SHA256 shared secret for the whole Velosyss -> Dad's Care push (see
+    # WebhookSignatureVerifier) — one secret for the platform, not per Organization,
+    # since Velosyss only knows Dad's Care as a single Enterprise account. Empty by
+    # default so an unconfigured environment fails closed rather than accepting
+    # unsigned requests.
+    velosyss-secret: ${WEBHOOK_VELOSYSS_SECRET:}
+    max-clock-skew-seconds: ${WEBHOOK_MAX_SKEW_SEC:300}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    com.dadscare: INFO
