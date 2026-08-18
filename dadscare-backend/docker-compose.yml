@@ -1,0 +1,23 @@
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: dadscare
+      MYSQL_USER: dadscare
+      MYSQL_PASSWORD: dadscare
+    ports:
+      # Non-default host port — 3306 is already in use by another local MySQL on this
+      # machine (Velosyss's dev stack). Matches DB_PORT in .env.example.
+      - "3308:3306"
+    volumes:
+      - dadscare_mysql_data:/var/lib/mysql
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      # Same reasoning — 6379 is already taken locally. Matches REDIS_PORT in .env.example.
+      - "6381:6379"
+
+volumes:
+  dadscare_mysql_data:

@@ -1,0 +1,18 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:dadscare;MODE=MySQL;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+  flyway:
+    enabled: false
+  data:
+    redis:
+      host: localhost
+      port: 6399 # unused in unit tests; nothing binds a real Redis in this profile
+
+app:
+  jwt:
+    secret: test-secret-test-secret-test-secret-test-secret-test-secret-test
