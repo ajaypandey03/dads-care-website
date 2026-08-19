@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
+import { AuthProvider } from "@/context/AuthContext";
 
 export const metadata: Metadata = {
   title: "DAD'S CARE - Trusted Logistics Solutions",
@@ -22,9 +21,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="scroll-smooth">
       <body className="antialiased">
-        <Header />
-        <main>{children}</main>
-        <Footer />
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );

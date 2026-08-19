@@ -198,6 +198,44 @@ NEXT_PUBLIC_FORMSPREE_ID=your_form_id_here
 └── package.json         # Dependencies
 ```
 
+## 🔐 Customer Dashboard (`/dashboard/*`) — Phase 3
+
+Alongside the public marketing pages above, this app also hosts Dad's Care's authenticated
+customer dashboard, reachable via the **Login** button in the header. It's the same domain
+and the same static export (`output: 'export'`) — the dashboard routes are plain client
+components (`"use client"`) that talk directly to `dadscare-backend`'s REST API over
+`fetch`, gated by a JWT kept in `localStorage`. There's no Next.js server involved, so
+hosting stays exactly as cheap as the marketing site's today.
+
+| Route | What it does |
+|---|---|
+| `/login` | Email/password sign-in against `POST /api/v1/auth/login` |
+| `/dashboard` | Live godown/shutter status per site (`GET /api/v1/sites`, `/sites/{id}/shutter-units`) |
+| `/dashboard/alerts` | Alert feed with classification badges and "Was this correct?" feedback |
+| `/dashboard/reports` | Client-side aggregation over the alerts + unlock-requests APIs, with CSV export |
+| `/dashboard/admin/masters` | Product/Transporter master data CRUD |
+| `/dashboard/admin/users` | Invite/suspend teammates — invite returns a one-time temporary password to relay out-of-band (no email/SMTP integration yet) |
+
+Route groups: `(public)/` holds the marketing pages under the shared `Header`/`Footer`
+layout; `/dashboard/*` has its own layout (`DashboardNav`) and an auth guard that redirects
+to `/login` when there's no valid session. `AuthProvider` (`src/context/AuthContext.tsx`)
+wraps the whole app at the root layout so both the public header's Login link and the
+dashboard's guard can read auth state.
+
+Since this is a static export, dynamic route segments (e.g. a `/dashboard/sites/[siteId]`
+page) aren't used — the site list expands inline per-card instead of navigating, which
+sidesteps the `generateStaticParams` requirement entirely.
+
+Configure the backend origin via `NEXT_PUBLIC_API_BASE_URL` (see `.env.example`) — it's
+inlined at build time like any other `NEXT_PUBLIC_*` var. `dadscare-backend`'s CORS config
+(`app.cors.allowed-origins`) already includes `http://localhost:3000` for local dev.
+
+**Known limitations, not yet built:** no role-based UI/API gating (any authenticated org
+member can reach `/dashboard/admin/*`, matching the rest of the backend's current
+authorization posture); master-data "Remove" is one-way (the list APIs only return
+`active=true` rows, so there's no reactivate path from this UI yet); invited users get a
+temporary password shown once in-app rather than emailed.
+
 ## 🎨 Design Theme
 
 - **Primary Color:** Blue (#1E40AF)
