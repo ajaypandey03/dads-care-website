@@ -1,6 +1,7 @@
 package com.dadscare.backend.common;
 
 import com.dadscare.backend.auth.InvalidCredentialsException;
+import com.dadscare.backend.user.EmailAlreadyExistsException;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +23,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<?> handleNotFound(EntityNotFoundException e) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));
+    }
+
+    @ExceptionHandler(EmailAlreadyExistsException.class)
+    public ResponseEntity<?> handleEmailExists(EmailAlreadyExistsException e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", e.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
