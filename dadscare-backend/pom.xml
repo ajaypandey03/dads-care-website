@@ -58,6 +58,14 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
+        <!-- Loads dadscare-backend/.env into the environment at startup (dev convenience —
+             mirrors what the .env/.env.example files already imply, since without this
+             Spring Boot never actually reads a plain .env file on its own). -->
+        <dependency>
+            <groupId>me.paulschwarz</groupId>
+            <artifactId>spring-dotenv</artifactId>
+            <version>4.0.0</version>
+        </dependency>
 
         <!-- DB -->
         <dependency>
