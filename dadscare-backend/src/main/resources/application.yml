@@ -3,9 +3,11 @@ spring:
     name: dadscare-backend
 
   datasource:
-    # Port default (3308) matches docker-compose.yml — deliberately non-standard because
-    # 3306 is already used by another local dev stack on this machine.
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3308}/${DB_NAME:dadscare}?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    # Default port is the standard 3306 — this now points at a "dadscare" DB/user
+    # created inside whatever local MySQL server is already running (see .env.example),
+    # rather than running a second MySQL via docker-compose.yml. Override via .env
+    # (auto-loaded — see spring-dotenv in pom.xml) if you do run the compose service.
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:dadscare}?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
     username: ${DB_USERNAME:dadscare}
     password: ${DB_PASSWORD:dadscare}
 
