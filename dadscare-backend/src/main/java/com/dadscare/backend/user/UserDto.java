@@ -1,6 +1,7 @@
 package com.dadscare.backend.user;
 
-public record UserDto(Long id, Long organizationId, String name, String email, String phone, Role role) {
+public record UserDto(
+        Long id, Long organizationId, String name, String email, String phone, Role role, boolean platformAdmin) {
 
     public static UserDto from(User entity) {
         return new UserDto(
@@ -9,6 +10,7 @@ public record UserDto(Long id, Long organizationId, String name, String email, S
                 entity.getName(),
                 entity.getEmail(),
                 entity.getPhone(),
-                entity.getRole());
+                entity.getRole(),
+                entity.isPlatformAdmin());
     }
 }

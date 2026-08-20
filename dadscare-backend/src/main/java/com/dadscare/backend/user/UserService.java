@@ -1,5 +1,6 @@
 package com.dadscare.backend.user;
 
+import com.dadscare.backend.common.TempPasswordGenerator;
 import com.dadscare.backend.tenant.Organization;
 import com.dadscare.backend.tenant.OrganizationRepository;
 import com.dadscare.backend.tenant.TenantContext;

@@ -19,14 +19,16 @@ public final class TenantContext {
     private static final ThreadLocal<Long> ORGANIZATION_ID = new ThreadLocal<>();
     private static final ThreadLocal<Long> USER_ID = new ThreadLocal<>();
     private static final ThreadLocal<String> ROLE = new ThreadLocal<>();
+    private static final ThreadLocal<Boolean> PLATFORM_ADMIN = new ThreadLocal<>();
 
     private TenantContext() {
     }
 
-    public static void set(Long organizationId, Long userId, String role) {
+    public static void set(Long organizationId, Long userId, String role, boolean platformAdmin) {
         ORGANIZATION_ID.set(organizationId);
         USER_ID.set(userId);
         ROLE.set(role);
+        PLATFORM_ADMIN.set(platformAdmin);
     }
 
     public static Long organizationId() {
@@ -46,9 +48,15 @@ public final class TenantContext {
         return ROLE.get();
     }
 
+    /** True only for Dad's Care's own staff — see {@link com.dadscare.backend.user.User#isPlatformAdmin()}. */
+    public static boolean isPlatformAdmin() {
+        return Boolean.TRUE.equals(PLATFORM_ADMIN.get());
+    }
+
     public static void clear() {
         ORGANIZATION_ID.remove();
         USER_ID.remove();
         ROLE.remove();
+        PLATFORM_ADMIN.remove();
     }
 }

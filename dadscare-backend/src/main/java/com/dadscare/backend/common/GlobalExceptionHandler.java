@@ -1,6 +1,8 @@
 package com.dadscare.backend.common;
 
 import com.dadscare.backend.auth.InvalidCredentialsException;
+import com.dadscare.backend.platform.PlatformAdminRequiredException;
+import com.dadscare.backend.platform.SlugAlreadyExistsException;
 import com.dadscare.backend.user.EmailAlreadyExistsException;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.Map;
@@ -28,6 +30,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(EmailAlreadyExistsException.class)
     public ResponseEntity<?> handleEmailExists(EmailAlreadyExistsException e) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", e.getMessage()));
+    }
+
+    @ExceptionHandler(SlugAlreadyExistsException.class)
+    public ResponseEntity<?> handleSlugExists(SlugAlreadyExistsException e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", e.getMessage()));
+    }
+
+    @ExceptionHandler(PlatformAdminRequiredException.class)
+    public ResponseEntity<?> handlePlatformAdminRequired(PlatformAdminRequiredException e) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", e.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

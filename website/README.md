@@ -215,6 +215,29 @@ hosting stays exactly as cheap as the marketing site's today.
 | `/dashboard/reports` | Client-side aggregation over the alerts + unlock-requests APIs, with CSV export |
 | `/dashboard/admin/masters` | Product/Transporter master data CRUD |
 | `/dashboard/admin/users` | Invite/suspend teammates — invite returns a one-time temporary password to relay out-of-band (no email/SMTP integration yet) |
+| `/dashboard/platform/organizations` | **Platform admins only.** Onboards new Dad's Care customer organizations — see below. |
+
+### Platform admins — onboarding new customer organizations
+
+Every normal user (even `ORG_ADMIN`) is scoped to one `Organization` (tenant). Onboarding a
+*new* customer — creating the `Organization` itself and its first admin user — is a separate,
+cross-tenant capability: a `platformAdmin` boolean on `User` (`is_platform_admin` column,
+`V5__platform_admin.sql`), carried as a JWT claim and checked by
+`PlatformOrganizationService.requirePlatformAdmin()` on every call. There's no self-serve way
+to become one — it's set directly in the database for Dad's Care's own staff.
+
+- `GET/POST /api/v1/platform/organizations` (`PlatformOrganizationController`) — list every
+  org, or onboard a new one (name/slug/codePrefix + first admin's name/email/phone). Create
+  returns the new org, its admin user, and a one-time temporary password, same convention as
+  `/api/v1/users`. Non-platform-admin callers get a `403`.
+- The dashboard's **Platform** nav link only renders for `isPlatformAdmin` users
+  (`AuthContext`); the page itself re-checks and shows a plain "not available" message
+  otherwise — the API's `403` is the actual security boundary, the UI check is just for a
+  clean experience, not a substitute for it.
+- To seed the first platform admin for a fresh environment, insert directly into `users` with
+  `is_platform_admin = TRUE` (and any `Organization` — a "Dad's Care Internal" one is the
+  obvious choice) rather than building an endpoint for it, since a
+  create-your-own-super-admin endpoint would be a bootstrapping backdoor.
 
 Route groups: `(public)/` holds the marketing pages under the shared `Header`/`Footer`
 layout; `/dashboard/*` has its own layout (`DashboardNav`) and an auth guard that redirects

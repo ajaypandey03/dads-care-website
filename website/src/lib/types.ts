@@ -9,6 +9,7 @@ export interface LoginResponse {
   userId: number;
   organizationId: number;
   role: Role;
+  platformAdmin: boolean;
 }
 
 export interface Site {
@@ -103,4 +104,20 @@ export interface Me {
   email: string;
   phone: string | null;
   role: Role;
+  platformAdmin: boolean;
+}
+
+export interface Organization {
+  id: number;
+  name: string;
+  slug: string;
+  codePrefix: string;
+  active: boolean;
+  createdAt: string;
+}
+
+export interface CreateOrganizationResponse {
+  organization: Organization;
+  adminUser: UserAdmin;
+  temporaryPassword: string;
 }
