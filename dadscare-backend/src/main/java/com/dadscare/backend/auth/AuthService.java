@@ -26,8 +26,9 @@ public class AuthService {
         }
 
         String token = jwtService.issueAccessToken(
-                user.getId(), user.getOrganization().getId(), user.getRole().name());
+                user.getId(), user.getOrganization().getId(), user.getRole().name(), user.isPlatformAdmin());
 
-        return LoginResponse.bearer(token, user.getId(), user.getOrganization().getId(), user.getRole().name());
+        return LoginResponse.bearer(
+                token, user.getId(), user.getOrganization().getId(), user.getRole().name(), user.isPlatformAdmin());
     }
 }

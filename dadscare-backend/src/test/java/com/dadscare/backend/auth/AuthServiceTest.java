@@ -57,7 +57,7 @@ class AuthServiceTest {
     void issuesATokenForCorrectCredentials() {
         when(userRepository.findByEmail("ops@acme.example")).thenReturn(Optional.of(activeUser));
         when(passwordEncoder.matches("correct-password", "hashed-password")).thenReturn(true);
-        when(jwtService.issueAccessToken(42L, 7L, "SITE_MANAGER")).thenReturn("signed.jwt.token");
+        when(jwtService.issueAccessToken(42L, 7L, "SITE_MANAGER", false)).thenReturn("signed.jwt.token");
 
         LoginResponse response = authService.login(new LoginRequest("ops@acme.example", "correct-password"));
 
@@ -65,6 +65,19 @@ class AuthServiceTest {
         assertThat(response.userId()).isEqualTo(42L);
         assertThat(response.organizationId()).isEqualTo(7L);
         assertThat(response.role()).isEqualTo("SITE_MANAGER");
+        assertThat(response.platformAdmin()).isFalse();
+    }
+
+    @Test
+    void marksThePlatformAdminFlagOnTheIssuedTokenForAPlatformAdminUser() {
+        activeUser.setPlatformAdmin(true);
+        when(userRepository.findByEmail("ops@acme.example")).thenReturn(Optional.of(activeUser));
+        when(passwordEncoder.matches("correct-password", "hashed-password")).thenReturn(true);
+        when(jwtService.issueAccessToken(42L, 7L, "SITE_MANAGER", true)).thenReturn("signed.jwt.token");
+
+        LoginResponse response = authService.login(new LoginRequest("ops@acme.example", "correct-password"));
+
+        assertThat(response.platformAdmin()).isTrue();
     }
 
     @Test

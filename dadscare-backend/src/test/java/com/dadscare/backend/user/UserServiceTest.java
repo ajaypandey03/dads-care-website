@@ -45,7 +45,7 @@ class UserServiceTest {
         organization.setSlug("acme-logistics");
         organization.setCodePrefix("AC");
 
-        TenantContext.set(7L, 42L, "ORG_ADMIN");
+        TenantContext.set(7L, 42L, "ORG_ADMIN", false);
     }
 
     @AfterEach

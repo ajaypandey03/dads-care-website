@@ -31,12 +31,13 @@ public class JwtService {
         this.accessTokenTtl = Duration.ofMinutes(accessTokenTtlMinutes);
     }
 
-    public String issueAccessToken(Long userId, Long organizationId, String role) {
+    public String issueAccessToken(Long userId, Long organizationId, String role, boolean platformAdmin) {
         Instant now = Instant.now();
         return Jwts.builder()
                 .subject(String.valueOf(userId))
                 .claim("orgId", organizationId)
                 .claim("role", role)
+                .claim("platformAdmin", platformAdmin)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plus(accessTokenTtl)))
                 .signWith(signingKey)

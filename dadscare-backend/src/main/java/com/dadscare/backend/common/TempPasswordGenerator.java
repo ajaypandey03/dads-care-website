@@ -1,9 +1,9 @@
-package com.dadscare.backend.user;
+package com.dadscare.backend.common;
 
 import java.security.SecureRandom;
 
-/** Generates a short, human-typeable random password for newly-invited users. */
-final class TempPasswordGenerator {
+/** Generates a short, human-typeable random password for newly-created users (invites, org onboarding). */
+public final class TempPasswordGenerator {
 
     private static final String ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
     private static final int LENGTH = 12;
@@ -11,7 +11,7 @@ final class TempPasswordGenerator {
 
     private TempPasswordGenerator() {}
 
-    static String generate() {
+    public static String generate() {
         StringBuilder sb = new StringBuilder(LENGTH);
         for (int i = 0; i < LENGTH; i++) {
             sb.append(ALPHABET.charAt(RANDOM.nextInt(ALPHABET.length())));

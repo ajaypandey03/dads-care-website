@@ -52,4 +52,13 @@ public class User extends BaseEntity {
     /** Expo push token from dadscare-mobile, if the user has ever registered one. Null until then. */
     @Column(name = "push_token")
     private String pushToken;
+
+    /**
+     * Grants access to the cross-tenant {@code /api/v1/platform/**} endpoints (onboarding
+     * new customer organizations, etc.) on top of this user's normal, single-org
+     * membership above. Only Dad's Care's own staff should ever have this set — there's
+     * no self-serve way to become one; it's set directly in the database.
+     */
+    @Column(name = "is_platform_admin", nullable = false)
+    private boolean platformAdmin = false;
 }

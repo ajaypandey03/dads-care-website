@@ -9,12 +9,14 @@ interface AuthUser {
   id: number;
   organizationId: number;
   role: Role;
+  platformAdmin: boolean;
 }
 
 interface AuthContextValue {
   user: AuthUser | null;
   me: Me | null;
   loading: boolean;
+  isPlatformAdmin: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
 }
@@ -54,7 +56,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .get<Me>("/api/v1/me")
       .then((profile) => {
         setMe(profile);
-        setUser({ id: profile.id, organizationId: profile.organizationId, role: profile.role });
+        setUser({
+          id: profile.id,
+          organizationId: profile.organizationId,
+          role: profile.role,
+          platformAdmin: profile.platformAdmin,
+        });
       })
       .catch(() => {
         clearToken();
@@ -65,13 +72,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (email: string, password: string) => {
     const response = await api.post<LoginResponse>("/api/v1/auth/login", { email, password });
     setToken(response.accessToken);
-    setUser({ id: response.userId, organizationId: response.organizationId, role: response.role });
+    setUser({
+      id: response.userId,
+      organizationId: response.organizationId,
+      role: response.role,
+      platformAdmin: response.platformAdmin,
+    });
     const profile = await api.get<Me>("/api/v1/me");
     setMe(profile);
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, me, loading, login, logout }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ user, me, loading, isPlatformAdmin: user?.platformAdmin ?? false, login, logout }}>
+      {children}
+    </AuthContext.Provider>
   );
 }
 
