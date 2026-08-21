@@ -20,7 +20,12 @@ public class AlertService {
     @Transactional(readOnly = true)
     public List<AlertDto> listForOrganization() {
         return alertRepository.findAllByOrganizationIdOrderByCreatedAtDesc(TenantContext.organizationId()).stream()
-                .map(AlertDto::from)
+                .map(alert -> AlertDto.from(
+                        alert,
+                        feedbackEntryRepository
+                                .findFirstByAlertIdOrderByCreatedAtDesc(alert.getId())
+                                .map(FeedbackEntry::isWasCorrect)
+                                .orElse(null)))
                 .toList();
     }
 

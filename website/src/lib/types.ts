@@ -56,11 +56,16 @@ export type AlertClassification =
 export interface Alert {
   id: number;
   deviceId: number;
+  deviceRef: string;
+  siteId: number | null;
+  siteName: string | null;
   direction: EventDirection;
   classification: AlertClassification;
   confidenceScore: number | null;
   sequenceCode: string | null;
   createdAt: string;
+  /** null = no "Was this correct?" answer yet; true/false = the most recent answer. */
+  feedbackCorrect: boolean | null;
 }
 
 export type CommandType = "LOCK" | "UNLOCK";
