@@ -2,6 +2,7 @@
 
 import { useEffect, useState, FormEvent } from "react";
 import { api, ApiError } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 import { Device, Site, ShutterUnit } from "@/lib/types";
 
 // ---- Shutter units within one godown ----
@@ -428,6 +429,24 @@ function DevicesSection() {
 }
 
 export default function GodownsAdminPage() {
+  const { canManage, loading } = useAuth();
+
+  if (loading) {
+    return <p className="text-gray-500">Loading…</p>;
+  }
+
+  if (!canManage) {
+    return (
+      <div className="bg-white rounded-lg shadow p-6">
+        <h1 className="text-xl font-bold text-gray-800 mb-2">Not available</h1>
+        <p className="text-gray-500">
+          Managing godowns is restricted to Org Admins and Site Managers. Your account doesn&apos;t have that
+          access.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-800 mb-1">Godowns</h1>

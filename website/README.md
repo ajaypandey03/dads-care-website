@@ -210,15 +210,57 @@ hosting stays exactly as cheap as the marketing site's today.
 | Route | What it does |
 |---|---|
 | `/login` | Email/password sign-in against `POST /api/v1/auth/login` |
-| `/dashboard` | Live godown/shutter status per site (`GET /api/v1/sites`, `/sites/{id}/shutter-units`) |
+| `/dashboard` | Live godown/shutter status per site (`GET /api/v1/sites`, `/sites/{id}/shutter-units`) — `ORG_ADMIN`/`SITE_MANAGER`/`VIEWER` land here; `OPERATOR` is redirected straight to `/dashboard/operate` instead (see "Roles" below) |
+| `/dashboard/operate` | The website's Opening/Closing operator form — pick a godown + shutter, fill stock lines/truck entries/labor/remarks/custom fields, submit to actually open or close the lock |
 | `/dashboard/alerts` | Alert feed — search by device ref/alert ref, filter by godown, classification badges, and "Was this correct?" feedback that stops re-asking once answered |
 | `/dashboard/reports` | Filterable (godown/device/status/direction) aggregation over the alerts + unlock-requests APIs, with CSV and PDF export |
 | `/dashboard/admin/godowns` | Add/edit godowns (sites) and their shutters, and register + map Digital Lock devices to a shutter — see below |
-| `/dashboard/admin/masters` | Product/Transporter master data CRUD |
+| `/dashboard/admin/masters` | Product/Transporter master data CRUD (view-only for `VIEWER`) |
 | `/dashboard/admin/users` | Invite/suspend teammates, with a choice of auto-generated or admin-set initial password — see "Passwords" below |
 | `/dashboard/account` | Self-service password change (reachable from the sidebar's user block) |
 | `/dashboard/platform/organizations` | **Platform admins only.** List + onboard customer organizations — see below. |
 | `/dashboard/platform/organizations/manage?id=` | **Platform admins only.** Edit one organization and manage its users — see below. |
+
+### Roles and what they can do
+
+Every `User` has a `Role` (`ORG_ADMIN`, `SITE_MANAGER`, `OPERATOR`, `VIEWER`), already
+carried in the JWT (`JwtAuthFilter` grants a `ROLE_<role>` authority) since Phase 1 — but
+until now nothing actually checked it. `@EnableMethodSecurity` + `@PreAuthorize` on every
+mutating controller method now enforces this matrix for real:
+
+| Capability | ORG_ADMIN | SITE_MANAGER | OPERATOR | VIEWER |
+|---|---|---|---|---|
+| View Godown Status, Alerts, Reports (+ export) | ✅ | ✅ | ✅ | ✅ |
+| Submit "Was this correct?" alert feedback | ✅ | ✅ | ✅ | ✅ |
+| **Operate a shutter** (`/dashboard/operate`) | ✅ | ✅ | ✅ | ❌ |
+| Manage Godowns/Shutters/Devices | ✅ | ✅ | ❌ | ❌ |
+| Manage Master Data | ✅ | ✅ | ❌ | view-only |
+| Manage Team (invite/suspend/change roles) | ✅ | ❌ | ❌ | ❌ |
+| Own account (change own password) | ✅ | ✅ | ✅ | ✅ |
+| Platform (cross-org onboarding) | separate `platformAdmin` flag on `User`, orthogonal to `Role` | | | |
+
+Reads stay open to every authenticated org member — tenant isolation (organizationId
+scoping) is already the real data boundary there. Only **mutating** endpoints are
+role-gated: `MasterDataController` (create/update/deactivate), `SiteController`/
+`ShutterUnitController`/`DeviceController` (create/update), `UserAdminController` (every
+method — Team roster is identity/PII data, scoped `ORG_ADMIN`-only even for reads), and
+`UnlockRequestController.create` (the actual "operate a shutter" action — `VIEWER`
+excluded is the fix for the underlying bug: previously *any* authenticated role could
+submit an unlock request). `AccessDeniedException` (thrown by `@PreAuthorize` failures)
+maps to `403` via `GlobalExceptionHandler`, same response shape as every other error.
+
+**Frontend enforcement is UX, not the security boundary** — `AuthContext` exposes
+`canManage`/`canOperate`/`isOrgAdmin` derived booleans; `DashboardSidebar` only renders
+nav links a role can actually use, and each gated page (`/dashboard/operate`,
+`/dashboard/admin/godowns`, `/dashboard/admin/users`) independently re-checks and shows a
+plain "Not available" message on direct URL access — reusing the same fallback pattern
+the Platform pages established. `/dashboard/admin/masters` stays reachable for `VIEWER`
+but hides the add-forms and Remove buttons. The real boundary is always the backend `403`.
+
+Verified with `RoleAuthorizationTest` (`dadscare-backend`, a `@WebMvcTest` exercising the
+real `JwtAuthFilter`/`JwtService`/`SecurityConfig` — every other test in this codebase is
+a Mockito service-unit test that never touches Spring Security) plus hand-verification in
+the browser as all four seeded demo roles.
 
 ### What Master Data is for
 

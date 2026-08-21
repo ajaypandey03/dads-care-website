@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 import { Site, ShutterUnit, ShutterState } from "@/lib/types";
 
 function OnlineBadge({ online }: { online: boolean }) {
@@ -119,13 +121,24 @@ function SiteCard({ site, units, unitsError }: { site: Site; units: ShutterUnit[
 }
 
 export default function DashboardOverviewPage() {
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [sites, setSites] = useState<Site[] | null>(null);
   const [unitsBySite, setUnitsBySite] = useState<Record<number, ShutterUnit[]>>({});
   const [unitErrorsBySite, setUnitErrorsBySite] = useState<Record<number, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
+  // OPERATOR's job is the open/close form, not this admin-oriented status view — send
+  // them straight to it instead of landing here with nothing to do.
   useEffect(() => {
+    if (!authLoading && user?.role === "OPERATOR") {
+      router.replace("/dashboard/operate");
+    }
+  }, [authLoading, user, router]);
+
+  useEffect(() => {
+    if (user?.role === "OPERATOR") return;
     api
       .get<Site[]>("/api/v1/sites")
       .then(async (data) => {
@@ -147,7 +160,7 @@ export default function DashboardOverviewPage() {
         );
       })
       .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load sites."));
-  }, []);
+  }, [user?.role]);
 
   const filteredSites = useMemo(() => {
     if (!sites) return null;
@@ -160,6 +173,10 @@ export default function DashboardOverviewPage() {
         (s.address ?? "").toLowerCase().includes(q),
     );
   }, [sites, search]);
+
+  if (authLoading || user?.role === "OPERATOR") {
+    return <p className="text-gray-500">Loading…</p>;
+  }
 
   return (
     <div>

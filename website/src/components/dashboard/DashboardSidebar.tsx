@@ -14,20 +14,23 @@ import {
   HomeIcon,
   LogoutIcon,
   MenuIcon,
+  UnlockIcon,
   UsersIcon,
   WarehouseIcon,
   XIcon,
 } from "./icons";
 
-const LINKS = [
+// Visible to every role.
+const BASE_LINKS = [
   { href: "/dashboard", label: "Godown Status", icon: HomeIcon },
   { href: "/dashboard/alerts", label: "Alerts", icon: BellIcon },
   { href: "/dashboard/reports", label: "Reports", icon: ChartIcon },
-  { href: "/dashboard/admin/godowns", label: "Godowns", icon: WarehouseIcon },
-  { href: "/dashboard/admin/masters", label: "Master Data", icon: BoxIcon },
-  { href: "/dashboard/admin/users", label: "Team", icon: UsersIcon },
 ];
 
+const OPERATE_LINK = { href: "/dashboard/operate", label: "Operate Shutter", icon: UnlockIcon };
+const GODOWNS_LINK = { href: "/dashboard/admin/godowns", label: "Godowns", icon: WarehouseIcon };
+const MASTERS_LINK = { href: "/dashboard/admin/masters", label: "Master Data", icon: BoxIcon };
+const TEAM_LINK = { href: "/dashboard/admin/users", label: "Team", icon: UsersIcon };
 const PLATFORM_LINK = { href: "/dashboard/platform/organizations", label: "Platform", icon: BuildingIcon };
 
 function isActive(pathname: string, href: string): boolean {
@@ -36,8 +39,22 @@ function isActive(pathname: string, href: string): boolean {
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
-  const { me, isPlatformAdmin, logout } = useAuth();
-  const links = isPlatformAdmin ? [...LINKS, PLATFORM_LINK] : LINKS;
+  const { user, me, isPlatformAdmin, canManage, canOperate, isOrgAdmin, logout } = useAuth();
+
+  // Master Data stays visible (read-only) to VIEWER too — only OPERATOR has no use for it.
+  const canSeeMasters = canManage || user?.role === "VIEWER";
+
+  // Nav items gated per the role matrix — see website/README.md "Roles and what they can do."
+  const links = [
+    BASE_LINKS[0],
+    ...(canOperate ? [OPERATE_LINK] : []),
+    BASE_LINKS[1],
+    BASE_LINKS[2],
+    ...(canManage ? [GODOWNS_LINK] : []),
+    ...(canSeeMasters ? [MASTERS_LINK] : []),
+    ...(isOrgAdmin ? [TEAM_LINK] : []),
+    ...(isPlatformAdmin ? [PLATFORM_LINK] : []),
+  ];
 
   return (
     <div className="flex h-full flex-col">
