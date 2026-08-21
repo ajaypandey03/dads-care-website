@@ -5,7 +5,11 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-/** Onboards a new Dad's Care customer: creates its Organization and its first ORG_ADMIN user. */
+/**
+ * Onboards a new Dad's Care customer: creates its Organization and its first ORG_ADMIN user.
+ * {@code adminPassword} is optional — see {@link com.dadscare.backend.user.CreateUserRequest}
+ * for the same convention on the plain team-invite flow.
+ */
 public record CreateOrganizationRequest(
         @NotBlank @Size(max = 255) String name,
         @NotBlank
@@ -20,4 +24,5 @@ public record CreateOrganizationRequest(
                 String codePrefix,
         @NotBlank @Size(max = 255) String adminName,
         @NotBlank @Email String adminEmail,
-        String adminPhone) {}
+        String adminPhone,
+        @Size(min = 8, max = 100, message = "password must be at least 8 characters") String adminPassword) {}

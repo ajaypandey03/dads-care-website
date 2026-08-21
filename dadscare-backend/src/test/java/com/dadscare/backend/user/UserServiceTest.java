@@ -76,7 +76,7 @@ class UserServiceTest {
         when(passwordEncoder.encode(anyString())).thenReturn("hashed-temp-password");
 
         CreateUserResponse response = userService.createUser(
-                new CreateUserRequest("New Person", "new@acme.example", "9999999999", Role.OPERATOR));
+                new CreateUserRequest("New Person", "new@acme.example", "9999999999", Role.OPERATOR, null));
 
         assertThat(response.temporaryPassword()).isNotBlank();
         assertThat(response.user().email()).isEqualTo("new@acme.example");
@@ -90,7 +90,7 @@ class UserServiceTest {
         when(userRepository.findByEmail("dup@acme.example")).thenReturn(Optional.of(new User()));
 
         assertThatThrownBy(() -> userService.createUser(
-                        new CreateUserRequest("Dup", "dup@acme.example", null, Role.VIEWER)))
+                        new CreateUserRequest("Dup", "dup@acme.example", null, Role.VIEWER, null)))
                 .isInstanceOf(EmailAlreadyExistsException.class);
     }
 
@@ -107,5 +107,47 @@ class UserServiceTest {
 
         assertThat(result.role()).isEqualTo(Role.SITE_MANAGER);
         assertThat(result.status()).isEqualTo("SUSPENDED");
+    }
+
+    @Test
+    void usesTheAdminSuppliedPasswordInsteadOfGeneratingOneWhenProvided() {
+        when(userRepository.findByEmail("new@acme.example")).thenReturn(Optional.empty());
+        when(organizationRepository.findById(7L)).thenReturn(Optional.of(organization));
+        when(passwordEncoder.encode("Admin-Chosen-1")).thenReturn("hashed-admin-chosen");
+
+        CreateUserResponse response = userService.createUser(
+                new CreateUserRequest("New Person", "new@acme.example", null, Role.OPERATOR, "Admin-Chosen-1"));
+
+        assertThat(response.temporaryPassword()).isNull();
+        verify(passwordEncoder).encode("Admin-Chosen-1");
+    }
+
+    @Test
+    void changesPasswordWhenTheCurrentPasswordMatches() {
+        User user = new User();
+        user.setId(42L);
+        user.setOrganization(organization);
+        user.setPasswordHash("old-hash");
+        when(userRepository.findByIdAndOrganizationId(42L, 7L)).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("old-pass", "old-hash")).thenReturn(true);
+        when(passwordEncoder.encode("new-password-1")).thenReturn("new-hash");
+
+        userService.changePassword(new ChangePasswordRequest("old-pass", "new-password-1"));
+
+        assertThat(user.getPasswordHash()).isEqualTo("new-hash");
+    }
+
+    @Test
+    void rejectsChangingPasswordWhenTheCurrentPasswordIsWrong() {
+        User user = new User();
+        user.setId(42L);
+        user.setOrganization(organization);
+        user.setPasswordHash("old-hash");
+        when(userRepository.findByIdAndOrganizationId(42L, 7L)).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("wrong-pass", "old-hash")).thenReturn(false);
+
+        assertThatThrownBy(() -> userService.changePassword(new ChangePasswordRequest("wrong-pass", "new-password-1")))
+                .isInstanceOf(IncorrectPasswordException.class);
+        assertThat(user.getPasswordHash()).isEqualTo("old-hash");
     }
 }

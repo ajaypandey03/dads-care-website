@@ -32,12 +32,17 @@ export interface Device {
   lastBatteryPct: number | null;
 }
 
+export type ShutterState = "OPEN" | "CLOSED" | "UNKNOWN";
+
 export interface ShutterUnit {
   id: number;
   siteId: number;
   label: string;
   status: string;
   device: Device | null;
+  currentState: ShutterState;
+  lastOpenedAt: string | null;
+  lastClosedAt: string | null;
 }
 
 export type EventDirection = "OPEN" | "CLOSE";
@@ -94,7 +99,8 @@ export interface UserAdmin {
 
 export interface CreateUserResponse {
   user: UserAdmin;
-  temporaryPassword: string;
+  /** null when the admin set the password manually instead of letting one be generated. */
+  temporaryPassword: string | null;
 }
 
 export interface Me {
@@ -119,5 +125,11 @@ export interface Organization {
 export interface CreateOrganizationResponse {
   organization: Organization;
   adminUser: UserAdmin;
+  /** null when the platform admin set the first admin's password manually. */
+  temporaryPassword: string | null;
+}
+
+export interface ResetPasswordResponse {
+  user: UserAdmin;
   temporaryPassword: string;
 }

@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import DashboardNav from "@/components/dashboard/DashboardNav";
+import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -24,9 +24,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <DashboardNav />
-      <main className="container mx-auto px-4 py-8">{children}</main>
+    <div className="min-h-screen bg-gray-50 md:flex">
+      <DashboardSidebar />
+      <main className="flex-1 min-w-0 px-4 py-8 md:px-8">
+        <div className="mx-auto max-w-6xl">{children}</div>
+      </main>
     </div>
   );
 }

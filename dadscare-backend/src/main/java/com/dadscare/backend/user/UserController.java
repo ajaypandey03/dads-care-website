@@ -24,4 +24,9 @@ public class UserController {
     public void registerPushToken(@Valid @RequestBody RegisterPushTokenRequest request) {
         userService.registerPushToken(request);
     }
+
+    @PutMapping("/password")
+    public void changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+        userService.changePassword(request);
+    }
 }

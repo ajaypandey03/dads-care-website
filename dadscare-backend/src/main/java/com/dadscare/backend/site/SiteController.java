@@ -1,9 +1,13 @@
 package com.dadscare.backend.site;
 
+import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -19,8 +23,24 @@ public class SiteController {
         return siteService.listSites();
     }
 
+    @PostMapping
+    public SiteDto create(@Valid @RequestBody CreateSiteRequest request) {
+        return siteService.createSite(request);
+    }
+
+    @PutMapping("/{id}")
+    public SiteDto update(@PathVariable Long id, @Valid @RequestBody UpdateSiteRequest request) {
+        return siteService.updateSite(id, request);
+    }
+
     @GetMapping("/{siteId}/shutter-units")
     public List<ShutterUnitDto> listShutterUnits(@PathVariable Long siteId) {
         return siteService.listShutterUnits(siteId);
+    }
+
+    @PostMapping("/{siteId}/shutter-units")
+    public ShutterUnitDto createShutterUnit(
+            @PathVariable Long siteId, @Valid @RequestBody CreateShutterUnitRequest request) {
+        return siteService.createShutterUnit(siteId, request);
     }
 }

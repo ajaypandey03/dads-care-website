@@ -213,37 +213,132 @@ hosting stays exactly as cheap as the marketing site's today.
 | `/dashboard` | Live godown/shutter status per site (`GET /api/v1/sites`, `/sites/{id}/shutter-units`) |
 | `/dashboard/alerts` | Alert feed with classification badges and "Was this correct?" feedback |
 | `/dashboard/reports` | Client-side aggregation over the alerts + unlock-requests APIs, with CSV export |
+| `/dashboard/admin/godowns` | Add/edit godowns (sites) and their shutters, and register + map Digital Lock devices to a shutter — see below |
 | `/dashboard/admin/masters` | Product/Transporter master data CRUD |
-| `/dashboard/admin/users` | Invite/suspend teammates — invite returns a one-time temporary password to relay out-of-band (no email/SMTP integration yet) |
-| `/dashboard/platform/organizations` | **Platform admins only.** Onboards new Dad's Care customer organizations — see below. |
+| `/dashboard/admin/users` | Invite/suspend teammates, with a choice of auto-generated or admin-set initial password — see "Passwords" below |
+| `/dashboard/account` | Self-service password change (reachable from the sidebar's user block) |
+| `/dashboard/platform/organizations` | **Platform admins only.** List + onboard customer organizations — see below. |
+| `/dashboard/platform/organizations/manage?id=` | **Platform admins only.** Edit one organization and manage its users — see below. |
 
-### Platform admins — onboarding new customer organizations
+### Dashboard shell — sidebar, not a top-bar menu
+
+`/dashboard/*` uses a persistent left sidebar (`src/components/dashboard/DashboardSidebar.tsx`),
+not a horizontal nav bar — a deliberate "admin app" feel, distinct from the public site's
+top-bar `Header`. Desktop gets a fixed `w-64` dark sidebar with the real logo (on a white
+card, since the logo itself has no dark-mode background), icon + label nav, active-route
+highlighting, and the signed-in user + Logout pinned at the bottom. Below the `md` breakpoint
+it collapses to a slim top bar (logo + hamburger) that opens the same sidebar content as a
+slide-in drawer overlay. `dashboard/layout.tsx` composes it in a `flex` row with the page
+content, rather than stacking a nav bar above a `container mx-auto` column.
+
+### Brand colors
+
+The dashboard's palette (`--color-brand-*` tokens in `globals.css`, Tailwind v4 `@theme`) is
+sampled directly from `public/images/logo.png` — brick red from the "DAD'S CARE" wordmark
+(primary: buttons, active nav, focus rings), green from "Logistics Solutions" (secondary:
+used for sensitive actions like "Reset password"), and the truck icon's amber (the
+**Platform** nav item, so a platform-admin-only area reads as visually distinct). The public
+marketing pages keep their own established blue/orange theme (see "Design Theme" below) —
+this rebrand is scoped to the post-login dashboard, not a site-wide change.
+
+### Passwords — self-service change, and admin-set-or-generated on create
+
+- **Self-service:** `PUT /api/v1/me/password` (`ChangePasswordRequest`: currentPassword +
+  newPassword) — requires knowing the current password, since there's no email/reset-link
+  flow. Reachable at `/dashboard/account`, linked from the sidebar's user block (the gear
+  icon at the bottom).
+- **Admin-created users:** every "create a user" flow (`POST /api/v1/users` team invite,
+  `POST /api/v1/platform/organizations` first admin, `POST /api/v1/platform/organizations/
+  {id}/users`) now takes an optional `password` field. The shared
+  `PasswordModeField` component (`src/components/dashboard/PasswordModeField.tsx`) renders a
+  radio choice — **Auto-generate** (unchanged behavior: a random password is returned once
+  in the response) or **Set manually** (the admin types it; the response's
+  `temporaryPassword` comes back `null`, and the UI shows a "you already set it" message
+  instead of a password to copy). No email is sent either way — there's still no SMTP
+  integration, so the admin relays it out-of-band regardless of which mode they pick.
+
+### Godown Status — search, live open/closed state, and richer detail
+
+`/dashboard` (the live view, distinct from `/dashboard/admin/godowns` below) now:
+
+- Has a search box filtering godowns by name/code/address (client-side — org site counts
+  are small).
+- Fetches every site's shutter units **eagerly** on load (not lazily on expand, like the
+  original Phase 3 version), so each collapsed godown card can show a one-line live summary
+  ("2 shutters — 1 open, 1 closed") and a red dot if anything's open, without the customer
+  needing to open every card first.
+- Expanding a card shows, per shutter: an Open/Closed/Unknown badge, the device's Online/
+  Offline + battery badges (as before), and **last opened / last closed timestamps**.
+
+The Open/Closed/Unknown state and timestamps are new backend-derived fields
+(`ShutterUnitDto.currentState/lastOpenedAt/lastClosedAt`, `SiteService`) — not stored
+columns, but computed from the shutter's device's most recent `LOCK_OPEN` vs `LOCK_CLOSE`
+`RawEvent` (`RawEventRepository.findFirstByDeviceIdAndEventTypeOrderByEventTimestampDesc`),
+the same event-sourced-state approach the rest of this platform already uses (see "Lock vs
+Shutter" in Confluence) rather than a new field that could drift from what the events
+actually say. `UNKNOWN` means no lock events have arrived yet, or no device is mapped.
+
+### Godowns management (`/dashboard/admin/godowns`)
+
+Previously there was no way to create a godown, add a shutter to it, or register/map a
+Digital Lock device at all — every site/shutter/device in this repo's demo data was seeded
+directly via SQL. This screen closes that gap with real CRUD:
+
+- **Godowns**: add a new one (name, godown code, address); edit any existing one (name,
+  code, address, ACTIVE/INACTIVE) inline.
+- **Shutters**: per-godown, add a shutter (label) and toggle its active status. A shutter
+  with no device mapped says so, pointing at the Devices section below it.
+- **Devices**: register a new Digital Lock by its Velosyss device ref (the exact string
+  Velosyss's webhook payloads will carry — see `WebhookSignatureVerifier`/`WebhookService`),
+  optionally mapping it to an unassigned shutter at registration time; every existing
+  device's mapping can be changed via a per-row dropdown, which only offers shutters that
+  are unassigned (or already this device's own shutter) — the backend
+  (`ShutterUnitAlreadyMappedException`, 409) rejects double-mapping either way, so the
+  dropdown filtering is UX, not the only guard.
+- Backend: `SiteController`/`ShutterUnitController`/`DeviceController` (all under
+  `com.dadscare.backend.site`), all org-scoped through the same `TenantContext` pattern as
+  the rest of the codebase — no new authorization model needed here.
+
+### Platform admins — onboarding and managing customer organizations
 
 Every normal user (even `ORG_ADMIN`) is scoped to one `Organization` (tenant). Onboarding a
-*new* customer — creating the `Organization` itself and its first admin user — is a separate,
-cross-tenant capability: a `platformAdmin` boolean on `User` (`is_platform_admin` column,
-`V5__platform_admin.sql`), carried as a JWT claim and checked by
+*new* customer — creating the `Organization` itself and its first admin user — and later
+managing any org on the platform (edit its details, add/suspend its users, reset a locked-out
+user's password) is a separate, cross-tenant capability: a `platformAdmin` boolean on `User`
+(`is_platform_admin` column, `V5__platform_admin.sql`), carried as a JWT claim and checked by
 `PlatformOrganizationService.requirePlatformAdmin()` on every call. There's no self-serve way
 to become one — it's set directly in the database for Dad's Care's own staff.
 
-- `GET/POST /api/v1/platform/organizations` (`PlatformOrganizationController`) — list every
-  org, or onboard a new one (name/slug/codePrefix + first admin's name/email/phone). Create
-  returns the new org, its admin user, and a one-time temporary password, same convention as
-  `/api/v1/users`. Non-platform-admin callers get a `403`.
-- The dashboard's **Platform** nav link only renders for `isPlatformAdmin` users
-  (`AuthContext`); the page itself re-checks and shows a plain "not available" message
-  otherwise — the API's `403` is the actual security boundary, the UI check is just for a
-  clean experience, not a substitute for it.
+- `GET/POST /api/v1/platform/organizations` — list every org, or onboard a new one
+  (name/slug/codePrefix + first admin's name/email/phone). Create returns the new org, its
+  admin user, and a one-time temporary password, same convention as `/api/v1/users`.
+- `GET/PUT /api/v1/platform/organizations/{id}` — fetch or edit one org's name/codePrefix/
+  active flag. `slug` is intentionally not editable here (it's a stable identifier).
+- `GET/POST /api/v1/platform/organizations/{id}/users` — list, or directly add, a user inside
+  any org (not just the caller's own).
+- `PUT /api/v1/platform/organizations/{id}/users/{userId}` — change a user's role/status
+  (e.g. un-suspend someone the org's own admin locked out by mistake).
+- `POST /api/v1/platform/organizations/{id}/users/{userId}/reset-password` — support tool:
+  generates a new temporary password for a user who's lost access, returned once.
+- Every one of the above 403s for a non-platform-admin caller. The dashboard's **Platform**
+  nav link and the two platform pages only render for `isPlatformAdmin` users
+  (`AuthContext`) — a plain "not available" message otherwise — but that's UX, not the
+  security boundary; the API's `403` is.
+- The org list's **Manage** link opens `/dashboard/platform/organizations/manage?id={id}` — a
+  query param, not a `[id]` dynamic route segment, since this is a static export
+  (`output: 'export'`) with no `generateStaticParams` story for an org id that doesn't exist
+  at build time. Wrapped in `Suspense` per Next's requirement for `useSearchParams` in a
+  statically-exported page.
 - To seed the first platform admin for a fresh environment, insert directly into `users` with
   `is_platform_admin = TRUE` (and any `Organization` — a "Dad's Care Internal" one is the
   obvious choice) rather than building an endpoint for it, since a
   create-your-own-super-admin endpoint would be a bootstrapping backdoor.
 
 Route groups: `(public)/` holds the marketing pages under the shared `Header`/`Footer`
-layout; `/dashboard/*` has its own layout (`DashboardNav`) and an auth guard that redirects
-to `/login` when there's no valid session. `AuthProvider` (`src/context/AuthContext.tsx`)
-wraps the whole app at the root layout so both the public header's Login link and the
-dashboard's guard can read auth state.
+layout; `/dashboard/*` has its own layout + sidebar and an auth guard that redirects to
+`/login` when there's no valid session. `AuthProvider` (`src/context/AuthContext.tsx`) wraps
+the whole app at the root layout so both the public header's Login link and the dashboard's
+guard can read auth state.
 
 Since this is a static export, dynamic route segments (e.g. a `/dashboard/sites/[siteId]`
 page) aren't used — the site list expands inline per-card instead of navigating, which
@@ -256,8 +351,11 @@ inlined at build time like any other `NEXT_PUBLIC_*` var. `dadscare-backend`'s C
 **Known limitations, not yet built:** no role-based UI/API gating (any authenticated org
 member can reach `/dashboard/admin/*`, matching the rest of the backend's current
 authorization posture); master-data "Remove" is one-way (the list APIs only return
-`active=true` rows, so there's no reactivate path from this UI yet); invited users get a
-temporary password shown once in-app rather than emailed.
+`active=true` rows, so there's no reactivate path from this UI yet); invited/created users
+still have no email sent to them regardless of password mode — the admin always relays it
+directly; self-service password change has no "forgot password" recovery path (only a
+platform admin's org-management "Reset password" tool, or a fellow org admin re-inviting
+isn't possible today — there's no delete-user flow either).
 
 ## 🎨 Design Theme
 
