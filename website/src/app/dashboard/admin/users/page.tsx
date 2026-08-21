@@ -2,12 +2,14 @@
 
 import { useEffect, useState, FormEvent } from "react";
 import { api, ApiError } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 import { CreateUserResponse, Role, UserAdmin } from "@/lib/types";
 import { PasswordMode, PasswordModeField } from "@/components/dashboard/PasswordModeField";
 
 const ROLES: Role[] = ["ORG_ADMIN", "SITE_MANAGER", "OPERATOR", "VIEWER"];
 
 export default function TeamPage() {
+  const { isOrgAdmin, loading: authLoading } = useAuth();
   const [users, setUsers] = useState<UserAdmin[] | null>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -22,8 +24,9 @@ export default function TeamPage() {
   const load = () => api.get<UserAdmin[]>("/api/v1/users").then(setUsers);
 
   useEffect(() => {
+    if (!isOrgAdmin) return;
     load().catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load team."));
-  }, []);
+  }, [isOrgAdmin]);
 
   const handleInvite = async (e: FormEvent) => {
     e.preventDefault();
@@ -60,6 +63,19 @@ export default function TeamPage() {
     });
     await load();
   };
+
+  if (authLoading) {
+    return <p className="text-gray-500">Loading…</p>;
+  }
+
+  if (!isOrgAdmin) {
+    return (
+      <div className="bg-white rounded-lg shadow p-6">
+        <h1 className="text-xl font-bold text-gray-800 mb-2">Not available</h1>
+        <p className="text-gray-500">Managing the team is restricted to Org Admins. Your account doesn&apos;t have that access.</p>
+      </div>
+    );
+  }
 
   return (
     <div>

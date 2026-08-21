@@ -3,6 +3,7 @@ package com.dadscare.backend.site;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,11 +24,13 @@ public class SiteController {
         return siteService.listSites();
     }
 
+    @PreAuthorize("hasAnyRole('ORG_ADMIN','SITE_MANAGER')")
     @PostMapping
     public SiteDto create(@Valid @RequestBody CreateSiteRequest request) {
         return siteService.createSite(request);
     }
 
+    @PreAuthorize("hasAnyRole('ORG_ADMIN','SITE_MANAGER')")
     @PutMapping("/{id}")
     public SiteDto update(@PathVariable Long id, @Valid @RequestBody UpdateSiteRequest request) {
         return siteService.updateSite(id, request);
@@ -38,6 +41,7 @@ public class SiteController {
         return siteService.listShutterUnits(siteId);
     }
 
+    @PreAuthorize("hasAnyRole('ORG_ADMIN','SITE_MANAGER')")
     @PostMapping("/{siteId}/shutter-units")
     public ShutterUnitDto createShutterUnit(
             @PathVariable Long siteId, @Valid @RequestBody CreateShutterUnitRequest request) {

@@ -17,6 +17,11 @@ interface AuthContextValue {
   me: Me | null;
   loading: boolean;
   isPlatformAdmin: boolean;
+  /** ORG_ADMIN or SITE_MANAGER — can manage godowns/shutters/devices and master data. */
+  canManage: boolean;
+  /** ORG_ADMIN, SITE_MANAGER, or OPERATOR — can submit the open/close operator form. */
+  canOperate: boolean;
+  isOrgAdmin: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
 }
@@ -82,8 +87,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setMe(profile);
   }, []);
 
+  const role = user?.role;
+  const canManage = role === "ORG_ADMIN" || role === "SITE_MANAGER";
+  const canOperate = canManage || role === "OPERATOR";
+  const isOrgAdmin = role === "ORG_ADMIN";
+
   return (
-    <AuthContext.Provider value={{ user, me, loading, isPlatformAdmin: user?.platformAdmin ?? false, login, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        me,
+        loading,
+        isPlatformAdmin: user?.platformAdmin ?? false,
+        canManage,
+        canOperate,
+        isOrgAdmin,
+        login,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
