@@ -211,14 +211,49 @@ hosting stays exactly as cheap as the marketing site's today.
 |---|---|
 | `/login` | Email/password sign-in against `POST /api/v1/auth/login` |
 | `/dashboard` | Live godown/shutter status per site (`GET /api/v1/sites`, `/sites/{id}/shutter-units`) |
-| `/dashboard/alerts` | Alert feed with classification badges and "Was this correct?" feedback |
-| `/dashboard/reports` | Client-side aggregation over the alerts + unlock-requests APIs, with CSV export |
+| `/dashboard/alerts` | Alert feed — search by device ref/alert ref, filter by godown, classification badges, and "Was this correct?" feedback that stops re-asking once answered |
+| `/dashboard/reports` | Filterable (godown/device/status/direction) aggregation over the alerts + unlock-requests APIs, with CSV and PDF export |
 | `/dashboard/admin/godowns` | Add/edit godowns (sites) and their shutters, and register + map Digital Lock devices to a shutter — see below |
 | `/dashboard/admin/masters` | Product/Transporter master data CRUD |
 | `/dashboard/admin/users` | Invite/suspend teammates, with a choice of auto-generated or admin-set initial password — see "Passwords" below |
 | `/dashboard/account` | Self-service password change (reachable from the sidebar's user block) |
 | `/dashboard/platform/organizations` | **Platform admins only.** List + onboard customer organizations — see below. |
 | `/dashboard/platform/organizations/manage?id=` | **Platform admins only.** Edit one organization and manage its users — see below. |
+
+### What Master Data is for
+
+`/dashboard/admin/masters` manages `ProductMaster` (product name + unit, e.g. "Cement
+Bags" / "bags") and `TransporterMaster` (transporter name + code) — org-scoped reference
+lists, not telemetry or alert data. Their only consumer today is `dadscare-mobile`'s
+Opening/Closing Form: when a godown operator raises or lowers a shutter, the app's stock
+lines and truck entries are picked from these lists (dropdowns) rather than typed as free
+text. That keeps naming consistent across every submission — the same product is always
+called the same thing — which matters because that data flows into the `GodownForm`/
+`StockLine`/`TruckEntry` records a `CONFIRMED` alert links to, and from there into the
+WhatsApp notification template's inventory/logistics section and into reports. In short:
+maintain Master Data once per org, and every operator's form afterward stays consistent
+with it.
+
+### Alerts and Reports — filters and repeat-feedback prevention
+
+- **Alerts filters**: a search box (matches device ref or the alert's sequence code) and a
+  godown dropdown, both client-side over the already-fetched `/api/v1/alerts` response.
+- **"Was this correct?"**: `AlertDto` now carries `feedbackCorrect` (`null` = unanswered,
+  otherwise the most recent answer), computed from
+  `FeedbackEntryRepository.findFirstByAlertIdOrderByCreatedAtDesc`. Once an alert has been
+  answered, the row shows "✓ Confirmed correct" / "✗ Marked incorrect" instead of the
+  buttons — confirmed by refetching from the backend, not just local component state, so
+  this survives a page reload and is consistent across whoever else on the team looks at
+  it. `FeedbackEntry` itself is still an append-only audit log (unchanged) — this only
+  changes what the UI *shows*, not whether resubmission is technically possible via the API.
+- **Reports filters**: godown, device (derived from the alerts actually loaded, not a
+  separate device-list call), classification, and direction — all client-side, recomputing
+  both the stat cards and the table. `AlertDto` also now carries `deviceRef`/`siteId`/
+  `siteName` directly (previously just a bare `deviceId`), which both this page and Alerts
+  needed to filter/display without extra round trips.
+- **PDF export**: alongside the existing CSV export, `jspdf` + `jspdf-autotable` (new
+  client-side-only deps) generate a real downloadable PDF of the currently-filtered alert
+  table — same data as the CSV, different format.
 
 ### Dashboard shell — sidebar, not a top-bar menu
 
