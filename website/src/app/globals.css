@@ -1,6 +1,20 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
+/* Brand palette sampled directly from public/images/logo.png (the "DAD'S CARE" wordmark
+   is a brick red, "Logistics Solutions" a green, the truck icon's accent an amber) —
+   used by the post-login dashboard (sidebar, buttons, focus states). The public
+   marketing pages keep their existing blue/orange theme (see README "Design Theme"). */
+@theme {
+  --color-brand-red: #c6402a;
+  --color-brand-red-dark: #a6331f;
+  --color-brand-orange: #d2792e;
+  --color-brand-green: #2f7d52;
+  --color-brand-green-dark: #256341;
+  --color-brand-charcoal: #23262b;
+  --color-brand-charcoal-light: #2f333a;
+}
+
 body {
   margin: 0;
   padding: 0;

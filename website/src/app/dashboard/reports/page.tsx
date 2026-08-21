@@ -96,7 +96,7 @@ export default function ReportsPage() {
             <h2 className="text-lg font-semibold text-gray-800">Alert history</h2>
             <button
               onClick={exportAlertsCsv}
-              className="text-sm px-4 py-2 rounded-lg bg-blue-700 hover:bg-blue-800 text-white font-medium"
+              className="text-sm px-4 py-2 rounded-lg bg-brand-red hover:bg-brand-red-dark text-white font-medium"
             >
               Export CSV
             </button>

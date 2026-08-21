@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState, FormEvent } from "react";
+import Link from "next/link";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { CreateOrganizationResponse, Organization } from "@/lib/types";
+import { PasswordMode, PasswordModeField } from "@/components/dashboard/PasswordModeField";
 
 function slugify(name: string): string {
   return name
@@ -28,6 +30,8 @@ export default function PlatformOrganizationsPage() {
   const [adminName, setAdminName] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPhone, setAdminPhone] = useState("");
+  const [passwordMode, setPasswordMode] = useState<PasswordMode>("generate");
+  const [adminPassword, setAdminPassword] = useState("");
 
   const load = () => api.get<Organization[]>("/api/v1/platform/organizations").then(setOrgs);
 
@@ -71,6 +75,7 @@ export default function PlatformOrganizationsPage() {
         adminName,
         adminEmail,
         adminPhone: adminPhone || null,
+        adminPassword: passwordMode === "manual" ? adminPassword : null,
       });
       setJustCreated(response);
       setName("");
@@ -80,6 +85,8 @@ export default function PlatformOrganizationsPage() {
       setAdminName("");
       setAdminEmail("");
       setAdminPhone("");
+      setPasswordMode("generate");
+      setAdminPassword("");
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to create organization.");
@@ -99,13 +106,22 @@ export default function PlatformOrganizationsPage() {
 
       {justCreated && (
         <div className="mb-6 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
-          <p className="font-semibold mb-1">
-            {justCreated.organization.name} was created. Share this temporary password with{" "}
-            {justCreated.adminUser.email} directly (it won&apos;t be shown again):
-          </p>
-          <code className="bg-white px-2 py-1 rounded border border-amber-200 text-amber-900">
-            {justCreated.temporaryPassword}
-          </code>
+          {justCreated.temporaryPassword ? (
+            <>
+              <p className="font-semibold mb-1">
+                {justCreated.organization.name} was created. Share this temporary password with{" "}
+                {justCreated.adminUser.email} directly (it won&apos;t be shown again):
+              </p>
+              <code className="bg-white px-2 py-1 rounded border border-amber-200 text-amber-900">
+                {justCreated.temporaryPassword}
+              </code>
+            </>
+          ) : (
+            <p className="font-semibold">
+              {justCreated.organization.name} was created with the password you set for{" "}
+              {justCreated.adminUser.email} — let them know it directly.
+            </p>
+          )}
         </div>
       )}
 
@@ -117,7 +133,7 @@ export default function PlatformOrganizationsPage() {
             onChange={(e) => handleNameChange(e.target.value)}
             placeholder="Organization name (e.g. Beta Logistics Pvt Ltd)"
             required
-            className="sm:col-span-2 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            className="sm:col-span-2 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-brand-red"
           />
           <input
             value={slug}
@@ -129,7 +145,7 @@ export default function PlatformOrganizationsPage() {
             required
             pattern="^[a-z0-9]+(-[a-z0-9]+)*$"
             title="lowercase-kebab-case, e.g. beta-logistics"
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-brand-red"
           />
           <input
             value={codePrefix}
@@ -137,14 +153,14 @@ export default function PlatformOrganizationsPage() {
             placeholder="Code prefix (e.g. BL)"
             required
             maxLength={10}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-brand-red"
           />
           <input
             value={adminName}
             onChange={(e) => setAdminName(e.target.value)}
             placeholder="First admin's name"
             required
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-brand-red"
           />
           <input
             value={adminEmail}
@@ -152,18 +168,25 @@ export default function PlatformOrganizationsPage() {
             type="email"
             placeholder="First admin's email"
             required
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-brand-red"
           />
           <input
             value={adminPhone}
             onChange={(e) => setAdminPhone(e.target.value)}
             placeholder="First admin's phone (optional)"
-            className="sm:col-span-2 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            className="sm:col-span-2 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-brand-red"
+          />
+          <PasswordModeField
+            mode={passwordMode}
+            onModeChange={setPasswordMode}
+            password={adminPassword}
+            onPasswordChange={setAdminPassword}
+            label="First admin's password"
           />
           <button
             type="submit"
             disabled={submitting}
-            className="sm:col-span-2 px-4 py-2 bg-blue-700 hover:bg-blue-800 disabled:opacity-60 text-white text-sm font-medium rounded-lg"
+            className="sm:col-span-2 px-4 py-2 bg-brand-red hover:bg-brand-red-dark disabled:opacity-60 text-white text-sm font-medium rounded-lg"
           >
             {submitting ? "Creating…" : "Create organization"}
           </button>
@@ -179,6 +202,7 @@ export default function PlatformOrganizationsPage() {
               <th className="px-4 py-3">Code prefix</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Onboarded</th>
+              <th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody>
@@ -193,11 +217,19 @@ export default function PlatformOrganizationsPage() {
                   </span>
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-500">{new Date(org.createdAt).toLocaleDateString()}</td>
+                <td className="px-4 py-3 text-sm">
+                  <Link
+                    href={`/dashboard/platform/organizations/manage?id=${org.id}`}
+                    className="text-brand-red font-medium hover:underline"
+                  >
+                    Manage
+                  </Link>
+                </td>
               </tr>
             ))}
             {orgs?.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-gray-500">
+                <td colSpan={6} className="px-4 py-6 text-center text-gray-500">
                   No organizations yet.
                 </td>
               </tr>

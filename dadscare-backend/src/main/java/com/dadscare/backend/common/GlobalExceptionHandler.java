@@ -3,7 +3,10 @@ package com.dadscare.backend.common;
 import com.dadscare.backend.auth.InvalidCredentialsException;
 import com.dadscare.backend.platform.PlatformAdminRequiredException;
 import com.dadscare.backend.platform.SlugAlreadyExistsException;
+import com.dadscare.backend.site.DeviceRefAlreadyExistsException;
+import com.dadscare.backend.site.ShutterUnitAlreadyMappedException;
 import com.dadscare.backend.user.EmailAlreadyExistsException;
+import com.dadscare.backend.user.IncorrectPasswordException;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -40,6 +43,21 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(PlatformAdminRequiredException.class)
     public ResponseEntity<?> handlePlatformAdminRequired(PlatformAdminRequiredException e) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", e.getMessage()));
+    }
+
+    @ExceptionHandler(DeviceRefAlreadyExistsException.class)
+    public ResponseEntity<?> handleDeviceRefExists(DeviceRefAlreadyExistsException e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", e.getMessage()));
+    }
+
+    @ExceptionHandler(ShutterUnitAlreadyMappedException.class)
+    public ResponseEntity<?> handleShutterUnitAlreadyMapped(ShutterUnitAlreadyMappedException e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", e.getMessage()));
+    }
+
+    @ExceptionHandler(IncorrectPasswordException.class)
+    public ResponseEntity<?> handleIncorrectPassword(IncorrectPasswordException e) {
+        return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

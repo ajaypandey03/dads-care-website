@@ -16,4 +16,7 @@ public interface RawEventRepository extends JpaRepository<RawEvent, Long> {
     /** Used by RulesEngineService's quick-reclose check — deliberately narrow (one device, one type, one short window). */
     List<RawEvent> findAllByDeviceIdAndEventTypeAndEventTimestampBetween(
             Long deviceId, RawEvent.EventType eventType, Instant from, Instant to);
+
+    /** Used to derive a shutter's last-known open/close state for the dashboard's live status view. */
+    Optional<RawEvent> findFirstByDeviceIdAndEventTypeOrderByEventTimestampDesc(Long deviceId, RawEvent.EventType eventType);
 }

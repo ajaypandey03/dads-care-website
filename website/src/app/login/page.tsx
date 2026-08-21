@@ -64,7 +64,7 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-red focus:border-transparent outline-none"
               />
             </div>
             <div>
@@ -77,20 +77,20 @@ export default function LoginPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-red focus:border-transparent outline-none"
               />
             </div>
             <button
               type="submit"
               disabled={submitting}
-              className="w-full bg-blue-700 hover:bg-blue-800 disabled:opacity-60 text-white font-semibold px-8 py-3 rounded-lg transition-colors shadow-lg"
+              className="w-full bg-brand-red hover:bg-brand-red-dark disabled:opacity-60 text-white font-semibold px-8 py-3 rounded-lg transition-colors shadow-lg"
             >
               {submitting ? "Signing in…" : "Sign in"}
             </button>
           </form>
         </div>
         <p className="text-center text-sm text-gray-500 mt-6">
-          <Link href="/" className="hover:text-blue-700">
+          <Link href="/" className="hover:text-brand-red">
             &larr; Back to dadscare.in
           </Link>
         </p>

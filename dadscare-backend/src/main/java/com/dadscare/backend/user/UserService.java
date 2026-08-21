@@ -30,6 +30,16 @@ public class UserService {
         user.setPushToken(request.token());
     }
 
+    /** Self-service password change — no email/reset-link flow exists, so this is the only way in-app. */
+    @Transactional
+    public void changePassword(ChangePasswordRequest request) {
+        User user = requireCurrentUser();
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+            throw new IncorrectPasswordException();
+        }
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+    }
+
     /**
      * Lists every teammate in the caller's org. Note: unlike most endpoints in this service,
      * this and the mutating methods below aren't yet role-gated to ORG_ADMIN — every controller
@@ -52,7 +62,10 @@ public class UserService {
                 .findById(TenantContext.organizationId())
                 .orElseThrow(() -> new EntityNotFoundException("Organization not found"));
 
-        String temporaryPassword = TempPasswordGenerator.generate();
+        // Admin can set the password directly, or leave it blank to get a generated one —
+        // either way there's no email/SMTP integration, so it's relayed out-of-band regardless.
+        boolean adminSetPassword = request.password() != null && !request.password().isBlank();
+        String passwordToUse = adminSetPassword ? request.password() : TempPasswordGenerator.generate();
 
         User user = new User();
         user.setOrganization(organization);
@@ -61,10 +74,10 @@ public class UserService {
         user.setPhone(request.phone());
         user.setRole(request.role());
         user.setStatus("ACTIVE");
-        user.setPasswordHash(passwordEncoder.encode(temporaryPassword));
+        user.setPasswordHash(passwordEncoder.encode(passwordToUse));
         userRepository.save(user);
 
-        return new CreateUserResponse(UserAdminDto.from(user), temporaryPassword);
+        return new CreateUserResponse(UserAdminDto.from(user), adminSetPassword ? null : passwordToUse);
     }
 
     @Transactional
