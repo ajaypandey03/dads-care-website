@@ -150,6 +150,12 @@ function OperateForm({
         <p className="text-sm mb-1">
           {commandType === "UNLOCK" ? "Open" : "Close"} request for {unit.label} at {site.name}.
         </p>
+        {unit.device && (
+          <p className="text-xs text-gray-500 mb-1">
+            Velosyss lock {unit.device.velosyssDeviceRef}
+            {unit.device.velosyssTerminalId ? ` · terminal ${unit.device.velosyssTerminalId}` : ""}
+          </p>
+        )}
         {result.message && <p className="text-xs text-gray-500 mb-3">{result.message}</p>}
         {!result.message && <div className="mb-3" />}
         <button onClick={onDone} className="text-sm px-4 py-2 rounded-lg bg-brand-red hover:bg-brand-red-dark text-white font-medium">
