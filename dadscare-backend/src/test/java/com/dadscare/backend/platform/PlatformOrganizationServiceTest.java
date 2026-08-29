@@ -202,7 +202,7 @@ class PlatformOrganizationServiceTest {
         user.setStatus("ACTIVE");
         when(userRepository.findByIdAndOrganizationId(3L, 9L)).thenReturn(Optional.of(user));
 
-        UserAdminDto result = service.updateOrganizationUser(9L, 3L, new UpdateUserRequest(Role.SITE_MANAGER, "SUSPENDED"));
+        UserAdminDto result = service.updateOrganizationUser(9L, 3L, new UpdateUserRequest(Role.SITE_MANAGER, "SUSPENDED", null));
 
         assertThat(result.role()).isEqualTo(Role.SITE_MANAGER);
         assertThat(result.status()).isEqualTo("SUSPENDED");
@@ -236,7 +236,7 @@ class PlatformOrganizationServiceTest {
         when(organizationRepository.findById(9L)).thenReturn(Optional.of(org));
         when(userRepository.findByIdAndOrganizationId(3L, 9L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.updateOrganizationUser(9L, 3L, new UpdateUserRequest(Role.VIEWER, "ACTIVE")))
+        assertThatThrownBy(() -> service.updateOrganizationUser(9L, 3L, new UpdateUserRequest(Role.VIEWER, "ACTIVE", null)))
                 .isInstanceOf(EntityNotFoundException.class);
     }
 }

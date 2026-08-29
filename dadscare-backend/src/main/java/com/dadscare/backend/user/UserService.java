@@ -87,6 +87,9 @@ public class UserService {
                 .orElseThrow(() -> new EntityNotFoundException("User " + userId + " not found"));
         user.setRole(request.role());
         user.setStatus(request.status());
+        if (request.phone() != null) {
+            user.setPhone(request.phone());
+        }
         return UserAdminDto.from(user);
     }
 

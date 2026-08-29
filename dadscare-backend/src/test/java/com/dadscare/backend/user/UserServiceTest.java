@@ -103,7 +103,7 @@ class UserServiceTest {
         user.setStatus("ACTIVE");
         when(userRepository.findByIdAndOrganizationId(3L, 7L)).thenReturn(Optional.of(user));
 
-        UserAdminDto result = userService.updateUser(3L, new UpdateUserRequest(Role.SITE_MANAGER, "SUSPENDED"));
+        UserAdminDto result = userService.updateUser(3L, new UpdateUserRequest(Role.SITE_MANAGER, "SUSPENDED", null));
 
         assertThat(result.role()).isEqualTo(Role.SITE_MANAGER);
         assertThat(result.status()).isEqualTo("SUSPENDED");
