@@ -79,11 +79,9 @@ public class RmlConnectWhatsAppSender implements NotificationChannelSender {
         var body = new SendMessageRequest(
                 notification.getRecipient(),
                 notification.getId().toString(),
-                // "text_template" — our approved template (see its preview) has only body
-                // variables, no header/media/button, so this is the right one of the four
-                // documented template_type values ("template, text_template, media_template,
-                // interactive_template").
-                new MediaTemplate("text_template", templateName, templateLangCode, buildBodyParams(alert)));
+                // "media_template" — confirmed against RMLConnect's real API (not just the
+                // docs) via a manual Postman test: "text_template" was rejected, this wasn't.
+                new MediaTemplate("media_template", templateName, templateLangCode, buildBodyParams(alert)));
 
         try {
             restClient
