@@ -4,9 +4,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Registers a {@link LoggingNotificationSender} for every channel except PUSH, which has
- * a real implementation ({@link ExpoPushSender}, registered as its own {@code @Component}
- * since it needs no stub — see its javadoc).
+ * Registers a {@link LoggingNotificationSender} for every channel that still has no real
+ * provider integration. PUSH ({@link ExpoPushSender}) and WHATSAPP ({@link
+ * RmlConnectWhatsAppSender}) are real and registered as their own {@code @Component}s
+ * instead, since they need no stub.
  */
 @Configuration
 public class NotificationSenderConfig {
@@ -19,10 +20,5 @@ public class NotificationSenderConfig {
     @Bean
     NotificationChannelSender emailSender() {
         return new LoggingNotificationSender(NotificationChannel.EMAIL);
-    }
-
-    @Bean
-    NotificationChannelSender whatsappSender() {
-        return new LoggingNotificationSender(NotificationChannel.WHATSAPP);
     }
 }

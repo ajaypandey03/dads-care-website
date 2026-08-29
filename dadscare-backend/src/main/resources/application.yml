@@ -52,6 +52,17 @@ app:
     velosyss-secret: ${WEBHOOK_VELOSYSS_SECRET:}
     max-clock-skew-seconds: ${WEBHOOK_MAX_SKEW_SEC:300}
 
+  whatsapp:
+    rmlconnect:
+      # Route Mobile's WhatsApp Business API — see RmlConnectAuthClient/RmlConnectWhatsAppSender.
+      # Blank username/password/template-name means "not configured": WHATSAPP sends log a
+      # warning and return false rather than throwing, same posture as the Velosyss clients.
+      base-url: ${RMLCONNECT_BASE_URL:https://apis.rmlconnect.net}
+      username: ${RMLCONNECT_USERNAME:}
+      password: ${RMLCONNECT_PASSWORD:}
+      template-name: ${RMLCONNECT_TEMPLATE_NAME:}
+      template-lang: ${RMLCONNECT_TEMPLATE_LANG:en}
+
   cors:
     # Browser-based clients only (mobile never hits CORS) — website/'s dashboard (Phase 3)
     # and dadscare-mobile's Expo web target for local testing. Comma-separated list.
