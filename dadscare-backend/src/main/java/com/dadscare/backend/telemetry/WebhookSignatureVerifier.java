@@ -26,14 +26,18 @@ public class WebhookSignatureVerifier {
         this.secretKeyBytes = secret.getBytes(StandardCharsets.UTF_8);
     }
 
+    private static final String SIGNATURE_PREFIX = "sha256=";
+
     /**
      * @param rawBody the exact, unparsed request body bytes — signatures are computed over
      *                the raw bytes, never the re-serialized object, so parsing must happen
      *                after this check, not before.
-     * @param providedSignatureHex the value of the {@code X-Signature} header, hex-encoded
+     * @param providedSignatureHeader the value of the {@code X-Velosyss-Signature} header
+     *                — {@code "sha256=<hex>"} per §4.3. A bare hex string (no prefix) is
+     *                also accepted, for local testing against the raw HMAC.
      */
-    public boolean isValid(byte[] rawBody, String providedSignatureHex) {
-        if (providedSignatureHex == null || providedSignatureHex.isBlank()) {
+    public boolean isValid(byte[] rawBody, String providedSignatureHeader) {
+        if (providedSignatureHeader == null || providedSignatureHeader.isBlank()) {
             return false;
         }
         if (secretKeyBytes.length == 0) {
@@ -41,8 +45,11 @@ public class WebhookSignatureVerifier {
             // fail closed rather than silently accepting unsigned requests.
             return false;
         }
+        String hex = providedSignatureHeader.startsWith(SIGNATURE_PREFIX)
+                ? providedSignatureHeader.substring(SIGNATURE_PREFIX.length())
+                : providedSignatureHeader;
         byte[] expected = computeHmac(rawBody);
-        byte[] provided = hexDecode(providedSignatureHex);
+        byte[] provided = hexDecode(hex);
         if (provided == null) {
             return false;
         }

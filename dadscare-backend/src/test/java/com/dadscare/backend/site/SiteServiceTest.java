@@ -135,11 +135,11 @@ class SiteServiceTest {
         when(organizationRepository.findById(7L)).thenReturn(Optional.of(organization));
         when(deviceRepository.findByVelosyssDeviceRef("VLS-DL-0002")).thenReturn(Optional.empty());
 
-        DeviceDto result = siteService.createDevice(new CreateDeviceRequest("VLS-DL-0002", null));
+        DeviceDto result = siteService.createDevice(new CreateDeviceRequest("VLS-DL-0002", null, null));
         assertThat(result.velosyssDeviceRef()).isEqualTo("VLS-DL-0002");
 
         when(deviceRepository.findByVelosyssDeviceRef("VLS-DL-0002")).thenReturn(Optional.of(device()));
-        assertThatThrownBy(() -> siteService.createDevice(new CreateDeviceRequest("VLS-DL-0002", null)))
+        assertThatThrownBy(() -> siteService.createDevice(new CreateDeviceRequest("VLS-DL-0002", null, null)))
                 .isInstanceOf(DeviceRefAlreadyExistsException.class);
     }
 
@@ -154,7 +154,7 @@ class SiteServiceTest {
         occupying.setId(99L);
         when(deviceRepository.findByShutterUnitId(5L)).thenReturn(Optional.of(occupying));
 
-        assertThatThrownBy(() -> siteService.createDevice(new CreateDeviceRequest("VLS-DL-0003", 5L)))
+        assertThatThrownBy(() -> siteService.createDevice(new CreateDeviceRequest("VLS-DL-0003", null, 5L)))
                 .isInstanceOf(ShutterUnitAlreadyMappedException.class);
     }
 

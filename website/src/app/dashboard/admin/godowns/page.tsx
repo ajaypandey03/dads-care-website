@@ -274,8 +274,11 @@ function DevicesSection() {
   const [shutterOptions, setShutterOptions] = useState<FlatShutterOption[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [ref, setRef] = useState("");
+  const [terminalId, setTerminalId] = useState("");
   const [shutterUnitId, setShutterUnitId] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
+  const [editingTerminalIdFor, setEditingTerminalIdFor] = useState<number | null>(null);
+  const [terminalIdDraft, setTerminalIdDraft] = useState("");
 
   const loadDevices = () => api.get<Device[]>("/api/v1/devices").then(setDevices);
 
@@ -304,9 +307,11 @@ function DevicesSection() {
     try {
       await api.post("/api/v1/devices", {
         velosyssDeviceRef: ref,
+        velosyssTerminalId: terminalId || null,
         shutterUnitId: shutterUnitId ? Number(shutterUnitId) : null,
       });
       setRef("");
+      setTerminalId("");
       setShutterUnitId("");
       await Promise.all([loadDevices(), loadShutterOptions()]);
     } catch (err) {
@@ -321,12 +326,35 @@ function DevicesSection() {
     try {
       await api.put(`/api/v1/devices/${device.id}`, {
         velosyssDeviceRef: device.velosyssDeviceRef,
+        velosyssTerminalId: device.velosyssTerminalId,
         shutterUnitId: newShutterUnitId ? Number(newShutterUnitId) : null,
         status: device.status,
       });
       await Promise.all([loadDevices(), loadShutterOptions()]);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to update mapping.");
+    }
+  };
+
+  const startEditTerminalId = (device: Device) => {
+    setEditingTerminalIdFor(device.id);
+    setTerminalIdDraft(device.velosyssTerminalId ?? "");
+  };
+
+  const saveTerminalId = async (device: Device) => {
+    setError(null);
+    try {
+      const current = shutterOptions.find((o) => o.unit.device?.id === device.id);
+      await api.put(`/api/v1/devices/${device.id}`, {
+        velosyssDeviceRef: device.velosyssDeviceRef,
+        velosyssTerminalId: terminalIdDraft || null,
+        shutterUnitId: current?.unit.id ?? null,
+        status: device.status,
+      });
+      setEditingTerminalIdFor(null);
+      await loadDevices();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to update terminal ID.");
     }
   };
 
@@ -341,12 +369,22 @@ function DevicesSection() {
 
       <div className="bg-white rounded-lg shadow p-5 mb-4">
         <h3 className="text-sm font-semibold text-gray-700 mb-3">Register a device</h3>
-        <form onSubmit={handleRegister} className="grid sm:grid-cols-3 gap-2">
+        <p className="text-xs text-gray-500 mb-2">
+          Two Velosyss identifiers are needed: the lock ID (numeric, used for remote commands) and the terminal
+          ID (used to match incoming lock events). Both are on the lock&apos;s Velosyss provisioning record.
+        </p>
+        <form onSubmit={handleRegister} className="grid sm:grid-cols-4 gap-2">
           <input
             value={ref}
             onChange={(e) => setRef(e.target.value)}
-            placeholder="Velosyss device ref (e.g. VLS-DL-0002)"
+            placeholder="Velosyss lock ID (e.g. 42)"
             required
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-brand-red"
+          />
+          <input
+            value={terminalId}
+            onChange={(e) => setTerminalId(e.target.value)}
+            placeholder="Terminal ID (e.g. 010036526447)"
             className="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-brand-red"
           />
           <select
@@ -377,7 +415,8 @@ function DevicesSection() {
         <table className="w-full text-left">
           <thead className="bg-gray-50 text-xs uppercase text-gray-500">
             <tr>
-              <th className="px-4 py-3">Device ref</th>
+              <th className="px-4 py-3">Lock ID</th>
+              <th className="px-4 py-3">Terminal ID</th>
               <th className="px-4 py-3">Online</th>
               <th className="px-4 py-3">Battery</th>
               <th className="px-4 py-3">Mapped shutter</th>
@@ -389,6 +428,32 @@ function DevicesSection() {
               return (
                 <tr key={device.id} className="border-t border-gray-100">
                   <td className="px-4 py-3 text-sm font-mono text-gray-800">{device.velosyssDeviceRef}</td>
+                  <td className="px-4 py-3 text-sm font-mono">
+                    {editingTerminalIdFor === device.id ? (
+                      <div className="flex gap-1">
+                        <input
+                          value={terminalIdDraft}
+                          onChange={(e) => setTerminalIdDraft(e.target.value)}
+                          className="w-32 px-2 py-1 border border-gray-300 rounded text-xs outline-none focus:ring-2 focus:ring-brand-red"
+                          autoFocus
+                        />
+                        <button onClick={() => saveTerminalId(device)} className="text-xs text-brand-red font-medium">
+                          Save
+                        </button>
+                        <button onClick={() => setEditingTerminalIdFor(null)} className="text-xs text-gray-400">
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => startEditTerminalId(device)}
+                        className={device.velosyssTerminalId ? "text-gray-800" : "text-amber-600 italic"}
+                        title="Click to edit — required for webhook events to correlate to this device"
+                      >
+                        {device.velosyssTerminalId ?? "not set"}
+                      </button>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-sm">
                     <span className={device.online ? "text-green-700" : "text-gray-400"}>
                       {device.online ? "Online" : "Offline"}
@@ -416,7 +481,7 @@ function DevicesSection() {
             })}
             {devices?.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-gray-500">
+                <td colSpan={5} className="px-4 py-6 text-center text-gray-500">
                   No devices registered yet.
                 </td>
               </tr>

@@ -100,10 +100,15 @@ public class SiteService {
         if (deviceRepository.findByVelosyssDeviceRef(request.velosyssDeviceRef()).isPresent()) {
             throw new DeviceRefAlreadyExistsException(request.velosyssDeviceRef());
         }
+        if (request.velosyssTerminalId() != null
+                && deviceRepository.findByVelosyssTerminalId(request.velosyssTerminalId()).isPresent()) {
+            throw new DeviceRefAlreadyExistsException(request.velosyssTerminalId());
+        }
 
         Device device = new Device();
         device.setOrganization(organization);
         device.setVelosyssDeviceRef(request.velosyssDeviceRef());
+        device.setVelosyssTerminalId(request.velosyssTerminalId());
         device.setStatus("ACTIVE");
         if (request.shutterUnitId() != null) {
             device.setShutterUnit(requireUnassignedShutterUnit(request.shutterUnitId(), organizationId));
@@ -125,8 +130,17 @@ public class SiteService {
                 .ifPresent(other -> {
                     throw new DeviceRefAlreadyExistsException(request.velosyssDeviceRef());
                 });
+        if (request.velosyssTerminalId() != null) {
+            deviceRepository
+                    .findByVelosyssTerminalId(request.velosyssTerminalId())
+                    .filter(other -> !other.getId().equals(deviceId))
+                    .ifPresent(other -> {
+                        throw new DeviceRefAlreadyExistsException(request.velosyssTerminalId());
+                    });
+        }
 
         device.setVelosyssDeviceRef(request.velosyssDeviceRef());
+        device.setVelosyssTerminalId(request.velosyssTerminalId());
         device.setStatus(request.status());
         if (request.shutterUnitId() == null) {
             device.setShutterUnit(null);

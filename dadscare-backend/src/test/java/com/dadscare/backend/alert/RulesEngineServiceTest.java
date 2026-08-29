@@ -122,7 +122,6 @@ class RulesEngineServiceTest {
     void noMatchWithNoTamperAndAQuickRecloseOnlyReachesVerifyTier() {
         RawEvent event = openEvent();
         event.setTamperFlag(false);
-        event.setMotionMagnitude(null);
         noCorrelationMatch();
         noCalibrationOverride();
         withQuickReclose();

@@ -1,0 +1,62 @@
+# Demo/UAT deployment on the shared Hostinger VPS (89.116.20.128) that also runs
+# Velosyss Nexus. mysql/redis here are dedicated to dadscare-backend, fully isolated
+# from Nexus's own postgres/valkey — no shared state, no port clash. The app container
+# also joins the `compose_nexus` external network (already created by Nexus's own
+# docker-compose) purely so Nexus's Caddy instance can reverse_proxy to it by container
+# name, since Caddy already owns host ports 80/443 — see /opt/nexus/compose/Caddyfile.
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-dadscare}
+      MYSQL_USER: ${DB_USERNAME:-dadscare}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+  app:
+    build: .
+    container_name: dadscare-app
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-dadscare}
+      DB_USERNAME: ${DB_USERNAME:-dadscare}
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESS_TTL_MIN: ${JWT_ACCESS_TTL_MIN:-60}
+      WEBHOOK_VELOSYSS_SECRET: ${WEBHOOK_VELOSYSS_SECRET:-}
+      WEBHOOK_MAX_SKEW_SEC: ${WEBHOOK_MAX_SKEW_SEC:-300}
+      VELOSYSS_API_BASE_URL: ${VELOSYSS_API_BASE_URL:-https://velosyss.com/api/v1}
+      VELOSYSS_API_KEY: ${VELOSYSS_API_KEY:-}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-https://dadscare.co.in}
+      SERVER_PORT: 8090
+    networks:
+      - default
+      - compose_nexus
+
+networks:
+  compose_nexus:
+    external: true
+
+volumes:
+  mysql-data:

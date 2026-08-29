@@ -18,10 +18,22 @@ import lombok.Getter;
 import lombok.Setter;
 
 /**
- * A lock/telemetry event exactly as received from Velosyss's outbound push — immutable,
- * never edited after insert. This is Dad's Care's own durable record independent of
- * Velosyss's system of record, and the input the Rules & Alerts Engine (Phase 2) reads
- * from. Deliberately does NOT extend {@link com.dadscare.backend.common.BaseEntity}:
+ * Every Velosyss webhook event exactly as received — immutable, never edited after
+ * insert — normalized into one of four internal types (see {@link EventType}):
+ * <ul>
+ *   <li>{@code SEAL_STATE} (§4.2) is translated to {@code LOCK_OPEN}/{@code LOCK_CLOSE}
+ *       here — {@code sealed=false} is an open, {@code sealed=true} a close — the
+ *       vocabulary the rest of the platform (SiteService's live shutter state,
+ *       RulesEngineService's correlation) already speaks. The raw {@link #sealed}/
+ *       {@link #shackleClosed} booleans are kept alongside for audit fidelity.
+ *   <li>{@code ALARM} is kept as-is — always alert-worthy, never scored (see
+ *       RulesEngineService#evaluateAlarm).
+ *   <li>{@code COMMAND_RESULT} is kept as-is for the audit trail, but never triggers an
+ *       Alert on its own — WebhookService instead applies it to the originating
+ *       {@link com.dadscare.backend.unlock.UnlockRequest} (see UnlockRequestService).
+ * </ul>
+ * This is Dad's Care's own durable record independent of Velosyss's system of record.
+ * Deliberately does NOT extend {@link com.dadscare.backend.common.BaseEntity}:
  * {@code receivedAt} (below) is the meaningful "created" timestamp here, and there is no
  * "updated" timestamp for an immutable row.
  */
@@ -43,7 +55,7 @@ public class RawEvent {
     @JoinColumn(name = "device_id", nullable = false)
     private Device device;
 
-    /** Velosyss's own event id — the de-dup key for at-least-once delivery. */
+    /** Velosyss's own event id — the de-dup key for at-least-once delivery (§4.4), shared across all event types. */
     @Column(name = "velosyss_event_id", nullable = false, unique = true)
     private String velosyssEventId;
 
@@ -51,43 +63,68 @@ public class RawEvent {
     @Column(name = "event_type", nullable = false, length = 30)
     private EventType eventType;
 
-    /** Raw lock state string as sent by Velosyss, kept verbatim alongside the normalized {@link #eventType}. */
-    @Column(name = "lock_status")
-    private String lockStatus;
+    // ---- SEAL_STATE (§4.2) ----
 
-    private Double latitude;
+    /** Electronic seal state as Velosyss reported it — {@code eventType} is already the normalized OPEN/CLOSE direction. */
+    private Boolean sealed;
 
-    private Double longitude;
+    /** Physical shackle position — related to but distinct from {@link #sealed}, per §4.2. */
+    @Column(name = "shackle_closed")
+    private Boolean shackleClosed;
 
-    private Double speed;
+    // ---- ALARM (§4.2) ----
 
-    @Column(name = "battery_pct")
-    private Integer batteryPct;
+    /** One of the {@code alarm} enum values in §4.2 (e.g. {@code SHACKLE_CUT}). */
+    @Column(name = "alarm_code")
+    private String alarmCode;
 
-    /** Accelerometer/motion reading, if the device reported one on this event. */
-    @Column(name = "motion_magnitude")
-    private Double motionMagnitude;
+    @Column(name = "alarm_description")
+    private String alarmDescription;
 
+    /**
+     * True if an ALARM landed on this device shortly before/after this event — computed
+     * by WebhookService at ingest time, since Velosyss no longer sends a raw tamper/motion
+     * flag on the SEAL_STATE event itself. Feeds RulesEngineService's secondary heuristic
+     * score in place of the sensor-level signal the original design assumed.
+     */
     @Column(name = "tamper_flag")
     private Boolean tamperFlag;
 
-    /** Which physical sensor produced this record — anticipates Phase 2 reed-switch sensors. */
-    @Column(name = "source_sensor", length = 50)
-    private String sourceSensor;
+    // ---- COMMAND_RESULT (§4.2) ----
 
-    /** When the event actually happened at the device, per Velosyss's payload. */
+    @Column(name = "command_request_id")
+    private String commandRequestId;
+
+    @Column(name = "command_action")
+    private String commandAction;
+
+    @Column(name = "command_status")
+    private String commandStatus;
+
+    @Column(name = "command_succeeded")
+    private Boolean commandSucceeded;
+
+    @Column(name = "command_message")
+    private String commandMessage;
+
+    /**
+     * When this row was written — used as the ordering/correlation-window key throughout
+     * (SiteService's live shutter state, RulesEngineService's correlation and
+     * quick-reclose checks). Velosyss's webhook payloads carry no event-level timestamp
+     * of their own (unlike the old assumed contract), so this is simply "when we received
+     * it" — kept as its own column (rather than reusing {@link #receivedAt}) to preserve
+     * the existing {@code RawEventRepository} query method names untouched.
+     */
     @Column(name = "event_timestamp", nullable = false)
-    private Instant eventTimestamp;
+    private Instant eventTimestamp = Instant.now();
 
-    /** When this row was written — used for the webhook's own "since last run" style queries if ever needed. */
     @Column(name = "received_at", nullable = false)
     private Instant receivedAt = Instant.now();
 
     public enum EventType {
         LOCK_OPEN,
         LOCK_CLOSE,
-        TAMPER,
-        MOTION,
-        HEARTBEAT
+        ALARM,
+        COMMAND_RESULT
     }
 }

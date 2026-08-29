@@ -1,6 +1,7 @@
 package com.dadscare.backend.notification;
 
 import com.dadscare.backend.alert.Alert;
+import com.dadscare.backend.alert.EventDirection;
 import com.dadscare.backend.forms.GodownForm;
 import com.dadscare.backend.forms.GodownFormRepository;
 import com.dadscare.backend.forms.GodownFormService;
@@ -43,6 +44,7 @@ public class AlertMessageTemplate {
         String statusWord = switch (alert.getDirection()) {
             case OPEN -> "OPEN";
             case CLOSE -> "CLOSED";
+            case ALARM -> "ALARM";
         };
         String godownLabel = event.getDevice().getShutterUnit() != null
                 ? event.getDevice().getShutterUnit().getSite().getGodownCode()
@@ -57,6 +59,12 @@ public class AlertMessageTemplate {
         }
         sb.append("\n");
         sb.append(classificationHeadline(alert));
+
+        if (alert.getDirection() == EventDirection.ALARM) {
+            sb.append("\nALARM: ")
+                    .append(event.getAlarmCode())
+                    .append(event.getAlarmDescription() != null ? " — " + event.getAlarmDescription() : "");
+        }
 
         appendFormSections(sb, alert);
 
@@ -131,6 +139,9 @@ public class AlertMessageTemplate {
     }
 
     private String classificationHeadline(Alert alert) {
+        if (alert.getDirection() == EventDirection.ALARM) {
+            return "🚨 Device alarm — verify immediately.";
+        }
         return switch (alert.getClassification()) {
             case CONFIRMED -> "Confirmed — operated via the Dad's Care app.";
             case UNEXPLAINED_HIGH -> "⚠️ Unexplained lock access — not initiated through the app. Please verify.";

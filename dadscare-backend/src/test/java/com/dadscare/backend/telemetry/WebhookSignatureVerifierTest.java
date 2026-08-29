@@ -49,7 +49,7 @@ class WebhookSignatureVerifierTest {
     void rejectsANonHexSignature() {
         byte[] body = "{\"events\":[]}".getBytes(StandardCharsets.UTF_8);
 
-        assertThat(verifier.isValid(body, "not-hex-at-all")).isFalse();
+        assertThat(verifier.isValid(body, "sha256=not-hex-at-all")).isFalse();
     }
 
     @Test
@@ -69,6 +69,6 @@ class WebhookSignatureVerifierTest {
         for (byte b : raw) {
             hex.append(String.format("%02x", b));
         }
-        return hex.toString();
+        return "sha256=" + hex;
     }
 }

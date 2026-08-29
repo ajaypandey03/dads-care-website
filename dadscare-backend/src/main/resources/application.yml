@@ -58,13 +58,19 @@ app:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:8081,http://localhost:8092}
 
   velosyss:
-    # Velosyss's Enterprise REST API — used by VelosyssCommandClient to relay LOCK/UNLOCK
-    # commands. Left blank by default: as of Phase 2, Velosyss doesn't yet support a
-    # LOCK/UNLOCK command type (see "Velosyss-side prerequisites" in the Implementation
-    # Tracker), so every real call fails until that ships. Blank means "not configured" —
-    # the client logs and returns a graceful failure rather than throwing.
-    api-base-url: ${VELOSYSS_API_BASE_URL:}
+    # Velosyss's Partner Integration Layer REST API (see "Velosyss Lock Integration Guide"
+    # in Confluence) — used by VelosyssCommandClient (SEAL/UNSEAL relay) and
+    # VelosyssReadClient (positions/events polling). Defaults to the real base URL; only
+    # api-key needs to be set per environment. Blank api-key means "not configured" — both
+    # clients log and return a graceful empty/failure result rather than throwing, so the
+    # app still runs (without live lock control) in an environment with no key yet.
+    api-base-url: ${VELOSYSS_API_BASE_URL:https://velosyss.com/api/v1}
     api-key: ${VELOSYSS_API_KEY:}
+    # Reconciliation safety net (§5) — never the primary signal, real-time state comes from
+    # the webhook. positions is cheap and frequent (dashboard live view); events is a
+    # missed-webhook backstop and can be much less frequent.
+    positions-poll-ms: ${VELOSYSS_POSITIONS_POLL_MS:20000}
+    events-poll-ms: ${VELOSYSS_EVENTS_POLL_MS:180000}
 
 springdoc:
   swagger-ui:

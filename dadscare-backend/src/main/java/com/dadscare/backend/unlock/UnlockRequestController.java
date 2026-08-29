@@ -30,4 +30,10 @@ public class UnlockRequestController {
     public List<UnlockRequestDto> list() {
         return unlockRequestService.listForOrganization();
     }
+
+    /** Lets the app poll a single request for its final outcome once the async COMMAND_RESULT webhook lands. */
+    @GetMapping("/unlock-requests/{id}")
+    public UnlockRequestDto get(@PathVariable Long id) {
+        return unlockRequestService.get(id);
+    }
 }

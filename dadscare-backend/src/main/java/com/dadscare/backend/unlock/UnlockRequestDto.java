@@ -3,7 +3,13 @@ package com.dadscare.backend.unlock;
 import java.time.Instant;
 
 public record UnlockRequestDto(
-        Long id, Long deviceId, CommandType commandType, UnlockRequestStatus status, Instant createdAt) {
+        Long id,
+        Long deviceId,
+        CommandType commandType,
+        UnlockRequestStatus status,
+        Boolean succeeded,
+        String message,
+        Instant createdAt) {
 
     public static UnlockRequestDto from(UnlockRequest entity) {
         return new UnlockRequestDto(
@@ -11,6 +17,8 @@ public record UnlockRequestDto(
                 entity.getDevice().getId(),
                 entity.getCommandType(),
                 entity.getStatus(),
+                entity.getSucceeded(),
+                entity.getMessage() != null ? entity.getMessage() : entity.getFailureReason(),
                 entity.getCreatedAt());
     }
 }

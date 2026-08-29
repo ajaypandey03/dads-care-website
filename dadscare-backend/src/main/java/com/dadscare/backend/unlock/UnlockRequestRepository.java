@@ -13,18 +13,24 @@ public interface UnlockRequestRepository extends JpaRepository<UnlockRequest, Lo
 
     List<UnlockRequest> findAllByOrganizationIdOrderByCreatedAtDesc(Long organizationId);
 
+    /** Correlates an inbound {@code COMMAND_RESULT} webhook back to the request that caused it. */
+    Optional<UnlockRequest> findByVelosyssRequestId(String velosyssRequestId);
+
     /**
-     * Candidates for Authorized-Open Correlation: successfully-relayed requests of the
-     * given command type, for the given device, whose {@code relayedAt} falls within the
-     * correlation window around the telemetry event's timestamp. Ordered so the closest
-     * match in time is picked first if more than one candidate exists.
+     * Candidates for Authorized-Open Correlation: requests of the given command type, for
+     * the given device, that Velosyss confirmed actually succeeded ({@code RESPONDED} +
+     * {@code succeeded = true} — the real terminal-success state, per §6.4 of the
+     * Integration Guide), whose {@code relayedAt} falls within the correlation window
+     * around the telemetry event's timestamp. Ordered so the closest match in time is
+     * picked first if more than one candidate exists.
      */
     @Query(
             """
             select ur from UnlockRequest ur
             where ur.device.id = :deviceId
               and ur.commandType = :commandType
-              and ur.status = com.dadscare.backend.unlock.UnlockRequestStatus.RELAYED
+              and ur.status = com.dadscare.backend.unlock.UnlockRequestStatus.RESPONDED
+              and ur.succeeded = true
               and ur.relayedAt between :windowStart and :windowEnd
             order by ur.relayedAt desc
             """)

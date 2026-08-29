@@ -62,7 +62,7 @@ function AlertCard({ alert, onFeedback }: { alert: AlertItem; onFeedback: (wasCo
     <View className="bg-white rounded-xl p-4 border border-gray-200">
       <View className="flex-row items-center justify-between">
         <Text className="text-base font-semibold text-gray-900">
-          Shutter {alert.direction === "OPEN" ? "Opened" : "Closed"}
+          {alert.direction === "ALARM" ? "🚨 Device Alarm" : `Shutter ${alert.direction === "OPEN" ? "Opened" : "Closed"}`}
         </Text>
         <View className={`px-2 py-1 rounded-full ${CLASSIFICATION_COLOR[alert.classification]}`}>
           <Text className="text-xs font-medium">{CLASSIFICATION_LABEL[alert.classification]}</Text>

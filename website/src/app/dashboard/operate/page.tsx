@@ -54,6 +54,31 @@ function OperateForm({
     api.get<TransporterMaster[]>("/api/v1/transporter-masters").then(setTransporters).catch(() => {});
   }, []);
 
+  // Commands are async — poll the request for up to ~20s while it's still in-flight, so
+  // the operator sees the real outcome (delivered server-side via the COMMAND_RESULT
+  // webhook) without needing to refresh.
+  useEffect(() => {
+    if (!result || !["PENDING", "QUEUED", "DISPATCHED"].includes(result.status)) {
+      return;
+    }
+    let cancelled = false;
+    const timer = setInterval(async () => {
+      try {
+        const latest = await api.get<UnlockRequest>(`/api/v1/unlock-requests/${result.id}`);
+        if (!cancelled) setResult(latest);
+      } catch {
+        // Transient — next tick retries.
+      }
+    }, 2500);
+    const stopAfter = setTimeout(() => clearInterval(timer), 20000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+      clearTimeout(stopAfter);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result?.id, result?.status]);
+
   const addStockLine = () => setStockLines((rows) => [...rows, { productMasterId: "", quantity: "" }]);
   const removeStockLine = (i: number) => setStockLines((rows) => rows.filter((_, idx) => idx !== i));
 
@@ -99,24 +124,36 @@ function OperateForm({
   };
 
   if (result) {
-    const statusStyle =
-      result.status === "RELAYED"
+    // Commands are async (Velosyss dispatches to physical hardware over its own
+    // connection) — QUEUED/DISPATCHED/PENDING aren't final, so poll for the real
+    // outcome (delivered via the COMMAND_RESULT webhook server-side) instead of leaving
+    // the operator staring at "Submitted" forever.
+    const inFlight = result.status === "PENDING" || result.status === "QUEUED" || result.status === "DISPATCHED";
+    const ok = result.status === "RESPONDED" && result.succeeded === true;
+    const statusStyle = inFlight
+      ? "bg-amber-50 border-amber-200 text-amber-800"
+      : ok
         ? "bg-green-50 border-green-200 text-green-800"
-        : result.status === "PENDING"
-          ? "bg-amber-50 border-amber-200 text-amber-800"
-          : "bg-red-50 border-red-200 text-red-800";
+        : "bg-red-50 border-red-200 text-red-800";
+    const headline: Record<UnlockRequest["status"], string> = {
+      PENDING: "Submitting…",
+      QUEUED: "Sent — Velosyss has accepted the command, waiting to dispatch to the lock…",
+      DISPATCHED: "Dispatched to the lock — waiting for it to respond…",
+      RESPONDED: ok ? "Confirmed — the lock responded successfully." : "The lock reported the command failed.",
+      DEVICE_OFFLINE: "The lock isn't currently connected — command could not be sent.",
+      EXPIRED: "No response from the lock within the timeout window.",
+      FAILED: "The command could not be relayed to Velosyss.",
+    };
     return (
       <div className={`rounded-lg border px-4 py-4 ${statusStyle}`}>
-        <p className="font-semibold mb-1">
-          {result.status === "RELAYED" && "Sent — the command was relayed to the lock."}
-          {result.status === "PENDING" && "Submitted — waiting to be relayed."}
-          {result.status === "FAILED" && "The command could not be relayed."}
-        </p>
-        <p className="text-sm mb-3">
+        <p className="font-semibold mb-1">{headline[result.status]}</p>
+        <p className="text-sm mb-1">
           {commandType === "UNLOCK" ? "Open" : "Close"} request for {unit.label} at {site.name}.
         </p>
+        {result.message && <p className="text-xs text-gray-500 mb-3">{result.message}</p>}
+        {!result.message && <div className="mb-3" />}
         <button onClick={onDone} className="text-sm px-4 py-2 rounded-lg bg-brand-red hover:bg-brand-red-dark text-white font-medium">
-          Done
+          {inFlight ? "Close (keep waiting in the background)" : "Done"}
         </button>
       </div>
     );

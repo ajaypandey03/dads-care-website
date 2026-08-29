@@ -18,4 +18,14 @@ public interface DeviceRepository extends JpaRepository<Device, Long> {
      * event belongs to (see WebhookService).
      */
     Optional<Device> findByVelosyssDeviceRef(String velosyssDeviceRef);
+
+    /**
+     * Looked up on every inbound webhook event (keyed by {@code terminalId}, not the
+     * REST {@code velosyssDeviceRef}) — deliberately NOT tenant-scoped, same reasoning
+     * as {@link #findByVelosyssDeviceRef}.
+     */
+    Optional<Device> findByVelosyssTerminalId(String velosyssTerminalId);
+
+    /** Used by VelosyssPollingService to join {@code GET /locks/positions} rows back to devices. */
+    java.util.List<Device> findAllByVelosyssTerminalIdIsNotNull();
 }

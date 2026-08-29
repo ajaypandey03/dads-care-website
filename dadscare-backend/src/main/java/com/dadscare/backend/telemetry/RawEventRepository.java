@@ -19,4 +19,8 @@ public interface RawEventRepository extends JpaRepository<RawEvent, Long> {
 
     /** Used to derive a shutter's last-known open/close state for the dashboard's live status view. */
     Optional<RawEvent> findFirstByDeviceIdAndEventTypeOrderByEventTimestampDesc(Long deviceId, RawEvent.EventType eventType);
+
+    /** Used by WebhookService to decide RawEvent#tamperFlag: did an ALARM land on this device around the same time? */
+    boolean existsByDeviceIdAndEventTypeAndEventTimestampBetween(
+            Long deviceId, RawEvent.EventType eventType, Instant from, Instant to);
 }

@@ -86,14 +86,22 @@ export default function GodownFormScreen() {
     try {
       const result = await submitUnlockRequest(Number(deviceId), payload);
       setSubmitState("idle");
-      if (result.status === "RELAYED") {
-        Alert.alert("Sent", "The command was sent to the lock.", [{ text: "OK", onPress: () => router.back() }]);
+      // Commands are async (Velosyss dispatches to physical hardware over its own
+      // connection) — PENDING/QUEUED/DISPATCHED just mean "on its way", not success.
+      // The definitive outcome arrives later via the COMMAND_RESULT webhook and shows up
+      // on the alerts/history screens; this alert is just acknowledging submission.
+      if (result.status === "PENDING" || result.status === "QUEUED" || result.status === "DISPATCHED") {
+        Alert.alert("Sent", "The command was sent to the lock — waiting for it to respond.", [
+          { text: "OK", onPress: () => router.back() },
+        ]);
+      } else if (result.status === "RESPONDED" && result.succeeded) {
+        Alert.alert("Sent", "The lock responded — command succeeded.", [{ text: "OK", onPress: () => router.back() }]);
       } else {
-        // status === "FAILED": Velosyss rejected/couldn't reach the device — a real
+        // FAILED / DEVICE_OFFLINE / EXPIRED / a RESPONDED-but-failed outcome — a real
         // failure, not a network problem, so this is NOT queued for retry.
         Alert.alert(
           "Could not reach the lock",
-          "Your form was saved, but the lock command failed. Please try again or contact support.",
+          result.message ?? "Your form was saved, but the lock command failed. Please try again or contact support.",
           [{ text: "OK", onPress: () => router.back() }],
         );
       }

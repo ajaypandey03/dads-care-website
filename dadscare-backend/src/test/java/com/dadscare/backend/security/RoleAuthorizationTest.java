@@ -104,7 +104,7 @@ class RoleAuthorizationTest {
     @Test
     void operatorCanOperateAShutter() throws Exception {
         when(unlockRequestService.create(any(), any()))
-                .thenReturn(new UnlockRequestDto(1L, 1L, CommandType.UNLOCK, UnlockRequestStatus.RELAYED, Instant.now()));
+                .thenReturn(new UnlockRequestDto(1L, 1L, CommandType.UNLOCK, UnlockRequestStatus.QUEUED, null, null, Instant.now()));
 
         mockMvc.perform(post("/api/v1/devices/1/unlock-requests")
                         .header("Authorization", "Bearer " + tokenFor(Role.OPERATOR))

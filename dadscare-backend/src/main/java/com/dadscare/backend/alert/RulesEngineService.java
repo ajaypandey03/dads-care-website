@@ -72,6 +72,33 @@ public class RulesEngineService {
             alert.setClassification(classify(score, calibration));
         }
 
+        return finalizeAndDispatch(alert, event);
+    }
+
+    /**
+     * ALARM events (§4.2 — shackle cut, tamper, low battery, GPS/motor fault, etc.) are
+     * never scored and never correlated against an UnlockRequest — an alarm firing is
+     * inherently notify-worthy regardless of anything the app itself did, so it always
+     * escalates straight to {@link AlertClassification#UNEXPLAINED_HIGH}.
+     */
+    @Transactional
+    public Alert evaluateAlarm(RawEvent event) {
+        if (alertRepository.existsByRawEventId(event.getId())) {
+            log.debug("Alert already exists for rawEventId={}, skipping", event.getId());
+            return null;
+        }
+
+        Alert alert = new Alert();
+        alert.setOrganization(event.getOrganization());
+        alert.setDevice(event.getDevice());
+        alert.setRawEvent(event);
+        alert.setDirection(EventDirection.ALARM);
+        alert.setClassification(AlertClassification.UNEXPLAINED_HIGH);
+
+        return finalizeAndDispatch(alert, event);
+    }
+
+    private Alert finalizeAndDispatch(Alert alert, RawEvent event) {
         if (alert.getClassification() != AlertClassification.SUPPRESSED) {
             alert.setSequenceCode(sequenceCounterService.nextAlertReferenceCode(
                     event.getOrganization().getId(), event.getOrganization().getCodePrefix()));
@@ -104,14 +131,16 @@ public class RulesEngineService {
     /**
      * Secondary heuristic — see the weight table on "Lock vs Shutter" in Confluence.
      * Only meaningful for OPEN events (a LOCK_CLOSE has no "was it left open a while"
-     * signal of its own); CLOSE events without a match score on tamper/motion alone.
+     * signal of its own); CLOSE events without a match score on the tamper signal alone.
+     * {@code tamperFlag} here means "an ALARM landed on this device around the same
+     * time" (see WebhookService) — Velosyss's real webhook contract has no raw
+     * sensor-level tamper/motion reading on the SEAL_STATE event itself, unlike the
+     * assumed contract this heuristic was originally built against.
      */
     private int score(RawEvent event, DeviceCalibration calibration) {
         int score = BASE_SCORE;
 
-        boolean tamperOrMotion = Boolean.TRUE.equals(event.getTamperFlag())
-                || (event.getMotionMagnitude() != null && event.getMotionMagnitude() > 0.3);
-        if (tamperOrMotion) {
+        if (Boolean.TRUE.equals(event.getTamperFlag())) {
             score += calibration.getTamperMotionWeight();
         }
 

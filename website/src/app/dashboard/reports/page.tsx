@@ -11,7 +11,7 @@ import { Alert, AlertClassification, EventDirection, Site, UnlockRequest } from 
 // alert volume outgrows a single unpaginated fetch.
 
 const CLASSIFICATIONS: AlertClassification[] = ["CONFIRMED", "UNEXPLAINED_HIGH", "UNEXPLAINED_VERIFY", "SUPPRESSED"];
-const DIRECTIONS: EventDirection[] = ["OPEN", "CLOSE"];
+const DIRECTIONS: EventDirection[] = ["OPEN", "CLOSE", "ALARM"];
 
 function StatCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
   return (
@@ -120,8 +120,15 @@ export default function ReportsPage() {
   }, [filteredAlerts]);
 
   const filteredDeviceIds = useMemo(() => new Set(filteredAlerts.map((a) => a.deviceId)), [filteredAlerts]);
+  // "Relayed" = successfully handed off to Velosyss at all (QUEUED/DISPATCHED/RESPONDED/EXPIRED all
+  // reached Velosyss — only PENDING (not yet sent), FAILED (our-side send error), and
+  // DEVICE_OFFLINE (Velosyss rejected outright, per §6.2 of the Integration Guide) don't count).
   const relayedCount = useMemo(
-    () => (unlockRequests ?? []).filter((u) => u.status === "RELAYED" && filteredDeviceIds.has(u.deviceId)).length,
+    () =>
+      (unlockRequests ?? []).filter(
+        (u) =>
+          !["PENDING", "FAILED", "DEVICE_OFFLINE"].includes(u.status) && filteredDeviceIds.has(u.deviceId),
+      ).length,
     [unlockRequests, filteredDeviceIds],
   );
 

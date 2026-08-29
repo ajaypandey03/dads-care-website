@@ -25,7 +25,10 @@ export type DeviceType = "DIGITAL_LOCK";
 
 export interface Device {
   id: number;
+  /** Velosyss's numeric lock id — used server-side for REST command/read calls. */
   velosyssDeviceRef: string;
+  /** Velosyss's terminalId — the join key for inbound webhook events. Null until linked. */
+  velosyssTerminalId: string | null;
   type: DeviceType;
   status: string;
   online: boolean;
@@ -56,17 +59,28 @@ export interface TransporterMaster {
 }
 
 export type CommandType = "LOCK" | "UNLOCK";
-export type UnlockRequestStatus = "PENDING" | "RELAYED" | "FAILED";
+/** Mirrors Velosyss's real command lifecycle (§6.4 of the Integration Guide) plus our own PENDING/FAILED pre/error states. */
+export type UnlockRequestStatus =
+  | "PENDING"
+  | "QUEUED"
+  | "DISPATCHED"
+  | "DEVICE_OFFLINE"
+  | "RESPONDED"
+  | "EXPIRED"
+  | "FAILED";
 
 export interface UnlockRequest {
   id: number;
   deviceId: number;
   commandType: CommandType;
   status: UnlockRequestStatus;
+  /** Only meaningful once status is RESPONDED — the lock's own reported success/failure. */
+  succeeded: boolean | null;
+  message: string | null;
   createdAt: string;
 }
 
-export type AlertDirection = "OPEN" | "CLOSE";
+export type AlertDirection = "OPEN" | "CLOSE" | "ALARM";
 export type AlertClassification = "CONFIRMED" | "UNEXPLAINED_HIGH" | "UNEXPLAINED_VERIFY" | "SUPPRESSED";
 
 export interface AlertItem {
