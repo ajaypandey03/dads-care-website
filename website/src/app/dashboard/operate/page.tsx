@@ -48,29 +48,43 @@ function OperateForm({
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<UnlockRequest | null>(null);
+  const [pollElapsedMs, setPollElapsedMs] = useState(0);
+  const [pollGaveUp, setPollGaveUp] = useState(false);
 
   useEffect(() => {
     api.get<ProductMaster[]>("/api/v1/product-masters").then(setProducts).catch(() => {});
     api.get<TransporterMaster[]>("/api/v1/transporter-masters").then(setTransporters).catch(() => {});
   }, []);
 
-  // Commands are async — poll the request for up to ~20s while it's still in-flight, so
-  // the operator sees the real outcome (delivered server-side via the COMMAND_RESULT
-  // webhook) without needing to refresh.
+  // Commands are async — the lock itself has to acknowledge over its own connection to
+  // Velosyss, which in practice can take up to ~60-90s (Velosyss's own command timeout)
+  // before either a real response or an EXPIRED comes back — so this polls for up to
+  // 2 minutes, not a short window, and tracks elapsed time for the progress indicator
+  // below rather than just freezing on the last-seen status if it runs out.
+  const POLL_INTERVAL_MS = 2500;
+  const POLL_TIMEOUT_MS = 120000;
+
   useEffect(() => {
     if (!result || !["PENDING", "QUEUED", "DISPATCHED"].includes(result.status)) {
       return;
     }
+    setPollElapsedMs(0);
+    setPollGaveUp(false);
     let cancelled = false;
+    const started = Date.now();
     const timer = setInterval(async () => {
+      setPollElapsedMs(Date.now() - started);
       try {
         const latest = await api.get<UnlockRequest>(`/api/v1/unlock-requests/${result.id}`);
         if (!cancelled) setResult(latest);
       } catch {
         // Transient — next tick retries.
       }
-    }, 2500);
-    const stopAfter = setTimeout(() => clearInterval(timer), 20000);
+    }, POLL_INTERVAL_MS);
+    const stopAfter = setTimeout(() => {
+      clearInterval(timer);
+      if (!cancelled) setPollGaveUp(true);
+    }, POLL_TIMEOUT_MS);
     return () => {
       cancelled = true;
       clearInterval(timer);
@@ -78,6 +92,16 @@ function OperateForm({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result?.id, result?.status]);
+
+  const refreshStatus = async () => {
+    if (!result) return;
+    setPollGaveUp(false);
+    try {
+      setResult(await api.get<UnlockRequest>(`/api/v1/unlock-requests/${result.id}`));
+    } catch {
+      // Leave the last-known state showing — button stays available to retry.
+    }
+  };
 
   const addStockLine = () => setStockLines((rows) => [...rows, { productMasterId: "", quantity: "" }]);
   const removeStockLine = (i: number) => setStockLines((rows) => rows.filter((_, idx) => idx !== i));
@@ -124,10 +148,10 @@ function OperateForm({
   };
 
   if (result) {
-    // Commands are async (Velosyss dispatches to physical hardware over its own
-    // connection) — QUEUED/DISPATCHED/PENDING aren't final, so poll for the real
-    // outcome (delivered via the COMMAND_RESULT webhook server-side) instead of leaving
-    // the operator staring at "Submitted" forever.
+    // Commands are async (the lock has to acknowledge over its own connection) —
+    // QUEUED/DISPATCHED/PENDING aren't final, so poll for the real outcome instead of
+    // leaving the operator staring at "Submitted" forever. See the polling effect above
+    // for why this can legitimately take up to ~2 minutes before a real answer.
     const inFlight = result.status === "PENDING" || result.status === "QUEUED" || result.status === "DISPATCHED";
     const ok = result.status === "RESPONDED" && result.succeeded === true;
     const statusStyle = inFlight
@@ -137,30 +161,56 @@ function OperateForm({
         : "bg-red-50 border-red-200 text-red-800";
     const headline: Record<UnlockRequest["status"], string> = {
       PENDING: "Submitting…",
-      QUEUED: "Sent — Velosyss has accepted the command, waiting to dispatch to the lock…",
+      QUEUED: "Sent — waiting for the lock to accept and dispatch the command…",
       DISPATCHED: "Dispatched to the lock — waiting for it to respond…",
       RESPONDED: ok ? "Confirmed — the lock responded successfully." : "The lock reported the command failed.",
       DEVICE_OFFLINE: "The lock isn't currently connected — command could not be sent.",
       EXPIRED: "No response from the lock within the timeout window.",
-      FAILED: "The command could not be relayed to Velosyss.",
+      FAILED: "The command could not be relayed.",
     };
+    const pollProgressPct = Math.min(100, Math.round((pollElapsedMs / POLL_TIMEOUT_MS) * 100));
     return (
       <div className={`rounded-lg border px-4 py-4 ${statusStyle}`}>
-        <p className="font-semibold mb-1">{headline[result.status]}</p>
+        <div className="flex items-center gap-2 mb-1">
+          {inFlight && (
+            <span className="inline-block h-4 w-4 rounded-full border-2 border-amber-400 border-t-transparent animate-spin" />
+          )}
+          <p className="font-semibold">{headline[result.status]}</p>
+        </div>
         <p className="text-sm mb-1">
           {commandType === "UNLOCK" ? "Open" : "Close"} request for {unit.label} at {site.name}.
         </p>
-        {unit.device && (
-          <p className="text-xs text-gray-500 mb-1">
-            Velosyss lock {unit.device.velosyssDeviceRef}
-            {unit.device.velosyssTerminalId ? ` · terminal ${unit.device.velosyssTerminalId}` : ""}
-          </p>
-        )}
         {result.message && <p className="text-xs text-gray-500 mb-3">{result.message}</p>}
         {!result.message && <div className="mb-3" />}
-        <button onClick={onDone} className="text-sm px-4 py-2 rounded-lg bg-brand-red hover:bg-brand-red-dark text-white font-medium">
-          {inFlight ? "Close (keep waiting in the background)" : "Done"}
-        </button>
+        {inFlight && (
+          <div className="mb-3">
+            <div className="h-1.5 w-full rounded-full bg-amber-100 overflow-hidden">
+              <div
+                className="h-full bg-amber-400 transition-all duration-300 ease-linear"
+                style={{ width: `${pollProgressPct}%` }}
+              />
+            </div>
+            {pollGaveUp && (
+              <p className="text-xs text-amber-700 mt-2">
+                Still no response after 2 minutes — the lock may be offline or slow to respond. Check again, or
+                keep waiting in the background.
+              </p>
+            )}
+          </div>
+        )}
+        <div className="flex gap-2">
+          {inFlight && pollGaveUp && (
+            <button
+              onClick={refreshStatus}
+              className="text-sm px-4 py-2 rounded-lg border border-amber-300 hover:bg-amber-100 text-amber-800 font-medium"
+            >
+              Check again
+            </button>
+          )}
+          <button onClick={onDone} className="text-sm px-4 py-2 rounded-lg bg-brand-red hover:bg-brand-red-dark text-white font-medium">
+            {inFlight ? "Close (keep waiting in the background)" : "Done"}
+          </button>
+        </div>
       </div>
     );
   }

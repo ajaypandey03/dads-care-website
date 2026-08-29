@@ -87,6 +87,18 @@ public class VelosyssPollingService {
         deviceRepository.saveAll(devicesByTerminalId.values());
     }
 
+    /**
+     * Runs independent of {@link VelosyssReadClient#isConfigured()} — even without a live
+     * Velosyss connection, a request already sitting PENDING/QUEUED/DISPATCHED (e.g. from
+     * before a misconfiguration was noticed) shouldn't stay open forever either. See
+     * {@code UnlockRequestService#expireStaleRequests}'s own javadoc for why this exists
+     * on top of {@link #pollPositions}'s state-change-based reconciliation.
+     */
+    @Scheduled(fixedDelayString = "${app.velosyss.positions-poll-ms:20000}", initialDelayString = "${app.velosyss.positions-poll-ms:20000}")
+    public void expireStaleUnlockRequests() {
+        unlockRequestService.expireStaleRequests(java.time.Duration.ofSeconds(150));
+    }
+
     @Scheduled(fixedDelayString = "${app.velosyss.events-poll-ms:180000}", initialDelayString = "${app.velosyss.events-poll-ms:180000}")
     public void pollEvents() {
         if (!velosyssReadClient.isConfigured()) {

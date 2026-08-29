@@ -24,6 +24,9 @@ public interface UnlockRequestRepository extends JpaRepository<UnlockRequest, Lo
      */
     List<UnlockRequest> findAllByDeviceIdAndStatusIn(Long deviceId, List<UnlockRequestStatus> statuses);
 
+    /** Every still-open request across every device, for {@code UnlockRequestService#expireStaleRequests}. */
+    List<UnlockRequest> findAllByStatusInAndCreatedAtBefore(List<UnlockRequestStatus> statuses, Instant cutoff);
+
     /**
      * Candidates for Authorized-Open Correlation: requests of the given command type, for
      * the given device, that Velosyss confirmed actually succeeded ({@code RESPONDED} +

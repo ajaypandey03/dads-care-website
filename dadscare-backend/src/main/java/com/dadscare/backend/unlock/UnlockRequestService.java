@@ -150,6 +150,28 @@ public class UnlockRequestService {
         }
     }
 
+    /**
+     * Marks any request that's been outstanding longer than {@code maxAge} as EXPIRED —
+     * a request the lock never actually executes (dispatched into a stale/dead session,
+     * genuinely offline, etc.) has no observed state change for {@link
+     * #reconcileFromObservedSealState} to ever match against, so without this it would sit
+     * QUEUED/DISPATCHED forever. Velosyss's own command timeout has been observed at
+     * roughly 60-90s in practice; {@code maxAge} should be comfortably longer than that.
+     */
+    @Transactional
+    public void expireStaleRequests(java.time.Duration maxAge) {
+        Instant cutoff = Instant.now().minus(maxAge);
+        List<UnlockRequest> stale = unlockRequestRepository.findAllByStatusInAndCreatedAtBefore(
+                List.of(UnlockRequestStatus.PENDING, UnlockRequestStatus.QUEUED, UnlockRequestStatus.DISPATCHED),
+                cutoff);
+        for (UnlockRequest request : stale) {
+            request.setStatus(UnlockRequestStatus.EXPIRED);
+            request.setExpiredAt(Instant.now());
+            request.setMessage("No response from the lock within the timeout window.");
+            unlockRequestRepository.save(request);
+        }
+    }
+
     private UnlockRequestStatus mapVelosyssStatus(String velosyssStatus) {
         if (velosyssStatus == null) {
             return UnlockRequestStatus.QUEUED;
