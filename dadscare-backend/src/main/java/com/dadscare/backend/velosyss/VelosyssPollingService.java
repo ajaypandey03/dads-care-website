@@ -3,6 +3,7 @@ package com.dadscare.backend.velosyss;
 import com.dadscare.backend.site.Device;
 import com.dadscare.backend.site.DeviceRepository;
 import com.dadscare.backend.telemetry.WebhookService;
+import com.dadscare.backend.unlock.UnlockRequestService;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +48,7 @@ public class VelosyssPollingService {
     private final DeviceRepository deviceRepository;
     private final WebhookService webhookService;
     private final IntegrationCursorRepository integrationCursorRepository;
+    private final UnlockRequestService unlockRequestService;
 
     @Scheduled(fixedDelayString = "${app.velosyss.positions-poll-ms:20000}", initialDelayString = "${app.velosyss.positions-poll-ms:20000}")
     @Transactional
@@ -78,6 +80,9 @@ public class VelosyssPollingService {
                 device.setLastBatteryMv(position.batteryVoltageMv());
                 device.setLastBatteryPct(approximateBatteryPercent(position.batteryVoltageMv()));
             }
+            // Fallback for when Velosyss's COMMAND_RESULT never arrives (webhook or events
+            // poll) — see UnlockRequestService#reconcileFromObservedSealState's own comment.
+            unlockRequestService.reconcileFromObservedSealState(device.getId(), position.sealed());
         }
         deviceRepository.saveAll(devicesByTerminalId.values());
     }

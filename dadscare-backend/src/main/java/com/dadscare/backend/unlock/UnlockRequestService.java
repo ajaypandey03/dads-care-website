@@ -116,6 +116,40 @@ public class UnlockRequestService {
                         event.terminalId()));
     }
 
+    /**
+     * Fallback reconciliation for when Velosyss's {@code COMMAND_RESULT} webhook/event
+     * never arrives (observed in practice against the real API — its {@code GET
+     * /locks/events} response shape doesn't actually carry {@code terminalId} or a
+     * {@code COMMAND_RESULT}-shaped payload the way the Integration Guide describes, so
+     * {@link #applyCommandResult} never fires). {@code GET /locks/positions} — polled
+     * separately, unconditionally, every {@code app.velosyss.positions-poll-ms} — has
+     * proven reliable, so: if a device's observed {@code sealed} state now matches what an
+     * outstanding request was asking for, treat that as the terminal outcome. Less precise
+     * than a real webhook (no exact response timestamp, no Velosyss-side failure detail),
+     * but keeps the UI from hanging on QUEUED forever when the lock has, physically,
+     * already done what was asked.
+     */
+    @Transactional
+    public void reconcileFromObservedSealState(Long deviceId, Boolean sealed) {
+        if (sealed == null) {
+            return;
+        }
+        List<UnlockRequest> outstanding = unlockRequestRepository.findAllByDeviceIdAndStatusIn(
+                deviceId, List.of(UnlockRequestStatus.PENDING, UnlockRequestStatus.QUEUED, UnlockRequestStatus.DISPATCHED));
+        for (UnlockRequest request : outstanding) {
+            boolean matchesObservedState = (request.getCommandType() == CommandType.UNLOCK && !sealed)
+                    || (request.getCommandType() == CommandType.LOCK && sealed);
+            if (!matchesObservedState) {
+                continue;
+            }
+            request.setStatus(UnlockRequestStatus.RESPONDED);
+            request.setSucceeded(true);
+            request.setRespondedAt(Instant.now());
+            request.setMessage("Reconciled from Velosyss positions poll — no COMMAND_RESULT event was received.");
+            unlockRequestRepository.save(request);
+        }
+    }
+
     private UnlockRequestStatus mapVelosyssStatus(String velosyssStatus) {
         if (velosyssStatus == null) {
             return UnlockRequestStatus.QUEUED;

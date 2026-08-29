@@ -191,7 +191,12 @@ public class SiteService {
 
         ShutterState state;
         if (lastOpenedAt == null && lastClosedAt == null) {
-            state = ShutterState.UNKNOWN;
+            // No SEAL_STATE webhook/event history yet (see VelosyssPollingService's own
+            // comment on why the events reconciliation path doesn't reliably fire against
+            // the real API) — fall back to the positions poll's own sealed reading, which
+            // has proven reliable, rather than showing UNKNOWN indefinitely.
+            Boolean lastSealed = device.getLastSealed();
+            state = lastSealed == null ? ShutterState.UNKNOWN : lastSealed ? ShutterState.CLOSED : ShutterState.OPEN;
         } else if (lastOpenedAt != null && (lastClosedAt == null || lastOpenedAt.isAfter(lastClosedAt))) {
             state = ShutterState.OPEN;
         } else {

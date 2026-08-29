@@ -17,6 +17,14 @@ public interface UnlockRequestRepository extends JpaRepository<UnlockRequest, Lo
     Optional<UnlockRequest> findByVelosyssRequestId(String velosyssRequestId);
 
     /**
+     * Still-open requests for a device, used by {@code VelosyssPollingService}'s positions
+     * poll to reconcile a request's outcome from observed lock state when Velosyss's
+     * {@code COMMAND_RESULT} webhook/event never arrives — see
+     * {@code UnlockRequestService#reconcileFromObservedSealState}.
+     */
+    List<UnlockRequest> findAllByDeviceIdAndStatusIn(Long deviceId, List<UnlockRequestStatus> statuses);
+
+    /**
      * Candidates for Authorized-Open Correlation: requests of the given command type, for
      * the given device, that Velosyss confirmed actually succeeded ({@code RESPONDED} +
      * {@code succeeded = true} — the real terminal-success state, per §6.4 of the
