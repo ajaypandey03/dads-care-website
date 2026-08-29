@@ -1,6 +1,8 @@
 package com.dadscare.backend.user;
 
 import com.dadscare.backend.common.TempPasswordGenerator;
+import com.dadscare.backend.site.Site;
+import com.dadscare.backend.site.SiteRepository;
 import com.dadscare.backend.tenant.Organization;
 import com.dadscare.backend.tenant.OrganizationRepository;
 import com.dadscare.backend.tenant.TenantContext;
@@ -17,6 +19,8 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final OrganizationRepository organizationRepository;
+    private final UserSiteAccessRepository userSiteAccessRepository;
+    private final SiteRepository siteRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Transactional(readOnly = true)
@@ -91,6 +95,44 @@ public class UserService {
             user.setPhone(request.phone());
         }
         return UserAdminDto.from(user);
+    }
+
+    /** Per-site role overrides for one teammate — see {@link UserSiteAccess}'s own javadoc. */
+    @Transactional(readOnly = true)
+    public List<UserSiteAccessDto> listSiteAccess(Long userId) {
+        User user = requireOrgUser(userId);
+        return userSiteAccessRepository.findAllByUserId(user.getId()).stream()
+                .map(UserSiteAccessDto::from)
+                .toList();
+    }
+
+    /** Replaces this user's entire site-access set — see {@link ReplaceSiteAccessRequest}'s own javadoc. */
+    @Transactional
+    public List<UserSiteAccessDto> replaceSiteAccess(Long userId, List<ReplaceSiteAccessRequest> requests) {
+        User user = requireOrgUser(userId);
+        Long organizationId = TenantContext.organizationId();
+        userSiteAccessRepository.deleteAllByUserId(user.getId());
+
+        List<UserSiteAccess> rows = requests.stream()
+                .map(request -> {
+                    Site site = siteRepository
+                            .findByIdAndOrganizationId(request.siteId(), organizationId)
+                            .orElseThrow(() -> new EntityNotFoundException("Site " + request.siteId() + " not found"));
+                    UserSiteAccess access = new UserSiteAccess();
+                    access.setUser(user);
+                    access.setSite(site);
+                    access.setRole(request.role());
+                    return access;
+                })
+                .toList();
+        userSiteAccessRepository.saveAll(rows);
+        return rows.stream().map(UserSiteAccessDto::from).toList();
+    }
+
+    private User requireOrgUser(Long userId) {
+        return userRepository
+                .findByIdAndOrganizationId(userId, TenantContext.organizationId())
+                .orElseThrow(() -> new EntityNotFoundException("User " + userId + " not found"));
     }
 
     private User requireCurrentUser() {

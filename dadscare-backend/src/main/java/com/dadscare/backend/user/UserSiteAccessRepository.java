@@ -9,4 +9,6 @@ public interface UserSiteAccessRepository extends JpaRepository<UserSiteAccess, 
     List<UserSiteAccess> findAllByUserId(Long userId);
 
     Optional<UserSiteAccess> findByUserIdAndSiteId(Long userId, Long siteId);
+
+    void deleteAllByUserId(Long userId);
 }

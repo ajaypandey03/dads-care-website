@@ -39,4 +39,16 @@ public class UserAdminController {
     public UserAdminDto update(@PathVariable Long id, @Valid @RequestBody UpdateUserRequest request) {
         return userService.updateUser(id, request);
     }
+
+    @GetMapping("/{id}/site-access")
+    public List<UserSiteAccessDto> listSiteAccess(@PathVariable Long id) {
+        return userService.listSiteAccess(id);
+    }
+
+    /** Replaces the user's entire site-access set — see {@link ReplaceSiteAccessRequest}'s own javadoc. */
+    @PutMapping("/{id}/site-access")
+    public List<UserSiteAccessDto> replaceSiteAccess(
+            @PathVariable Long id, @Valid @RequestBody List<ReplaceSiteAccessRequest> requests) {
+        return userService.replaceSiteAccess(id, requests);
+    }
 }

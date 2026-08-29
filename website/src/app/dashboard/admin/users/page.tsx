@@ -1,16 +1,20 @@
 "use client";
 
-import { useEffect, useState, FormEvent } from "react";
+import { useEffect, useState, FormEvent, Fragment } from "react";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
-import { CreateUserResponse, Role, UserAdmin } from "@/lib/types";
+import { CreateUserResponse, Role, Site, UserAdmin, UserSiteAccess } from "@/lib/types";
 import { PasswordMode, PasswordModeField } from "@/components/dashboard/PasswordModeField";
 
 const ROLES: Role[] = ["ORG_ADMIN", "SITE_MANAGER", "OPERATOR", "VIEWER"];
 
+/** "" (org-wide default) plus the four real roles, for the per-site override dropdown. */
+const SITE_ROLE_OPTIONS: (Role | "")[] = ["", "ORG_ADMIN", "SITE_MANAGER", "OPERATOR", "VIEWER"];
+
 export default function TeamPage() {
   const { isOrgAdmin, loading: authLoading } = useAuth();
   const [users, setUsers] = useState<UserAdmin[] | null>(null);
+  const [sites, setSites] = useState<Site[] | null>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -21,11 +25,24 @@ export default function TeamPage() {
   const [submitting, setSubmitting] = useState(false);
   const [justCreated, setJustCreated] = useState<CreateUserResponse | null>(null);
 
+  // Phone editing — one text field open at a time, keyed by user id.
+  const [editingPhoneFor, setEditingPhoneFor] = useState<number | null>(null);
+  const [phoneDraft, setPhoneDraft] = useState("");
+
+  // Per-site role overrides — one panel open at a time, keyed by user id.
+  const [siteAccessOpenFor, setSiteAccessOpenFor] = useState<number | null>(null);
+  const [siteAccessDraft, setSiteAccessDraft] = useState<Record<number, Role | "">>({});
+  const [siteAccessSaving, setSiteAccessSaving] = useState(false);
+
   const load = () => api.get<UserAdmin[]>("/api/v1/users").then(setUsers);
 
   useEffect(() => {
     if (!isOrgAdmin) return;
     load().catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load team."));
+    api
+      .get<Site[]>("/api/v1/sites")
+      .then(setSites)
+      .catch(() => {});
   }, [isOrgAdmin]);
 
   const handleInvite = async (e: FormEvent) => {
@@ -56,12 +73,51 @@ export default function TeamPage() {
     }
   };
 
-  const updateUser = async (user: UserAdmin, patch: Partial<Pick<UserAdmin, "role" | "status">>) => {
+  const updateUser = async (user: UserAdmin, patch: Partial<Pick<UserAdmin, "role" | "status" | "phone">>) => {
     await api.put(`/api/v1/users/${user.id}`, {
       role: patch.role ?? user.role,
       status: patch.status ?? user.status,
+      phone: patch.phone !== undefined ? patch.phone : undefined,
     });
     await load();
+  };
+
+  const startEditPhone = (user: UserAdmin) => {
+    setEditingPhoneFor(user.id);
+    setPhoneDraft(user.phone ?? "");
+  };
+
+  const savePhone = async (user: UserAdmin) => {
+    await updateUser(user, { phone: phoneDraft || "" });
+    setEditingPhoneFor(null);
+  };
+
+  const openSiteAccess = async (user: UserAdmin) => {
+    setSiteAccessOpenFor(user.id);
+    setSiteAccessDraft({});
+    try {
+      const overrides = await api.get<UserSiteAccess[]>(`/api/v1/users/${user.id}/site-access`);
+      const draft: Record<number, Role | ""> = {};
+      for (const o of overrides) draft[o.siteId] = o.role;
+      setSiteAccessDraft(draft);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to load site access.");
+    }
+  };
+
+  const saveSiteAccess = async (user: UserAdmin) => {
+    setSiteAccessSaving(true);
+    try {
+      const body = Object.entries(siteAccessDraft)
+        .filter(([, role]) => role !== "")
+        .map(([siteId, role]) => ({ siteId: Number(siteId), role }));
+      await api.put(`/api/v1/users/${user.id}/site-access`, body);
+      setSiteAccessOpenFor(null);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to save site access.");
+    } finally {
+      setSiteAccessSaving(false);
+    }
   };
 
   if (authLoading) {
@@ -161,6 +217,7 @@ export default function TeamPage() {
             <tr>
               <th className="px-4 py-3">Name</th>
               <th className="px-4 py-3">Email</th>
+              <th className="px-4 py-3">Phone</th>
               <th className="px-4 py-3">Role</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3"></th>
@@ -168,38 +225,119 @@ export default function TeamPage() {
           </thead>
           <tbody>
             {users?.map((u) => (
-              <tr key={u.id} className="border-t border-gray-100">
-                <td className="px-4 py-3 text-sm text-gray-800">{u.name}</td>
-                <td className="px-4 py-3 text-sm text-gray-500">{u.email}</td>
-                <td className="px-4 py-3">
-                  <select
-                    value={u.role}
-                    onChange={(e) => updateUser(u, { role: e.target.value as Role })}
-                    className="text-sm border border-gray-200 rounded px-2 py-1"
-                  >
-                    {ROLES.map((r) => (
-                      <option key={r} value={r}>
-                        {r}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td className="px-4 py-3 text-sm">
-                  <span className={u.status === "ACTIVE" ? "text-green-700" : "text-gray-400"}>{u.status}</span>
-                </td>
-                <td className="px-4 py-3">
-                  <button
-                    onClick={() => updateUser(u, { status: u.status === "ACTIVE" ? "SUSPENDED" : "ACTIVE" })}
-                    className="text-xs text-brand-red hover:underline"
-                  >
-                    {u.status === "ACTIVE" ? "Suspend" : "Reactivate"}
-                  </button>
-                </td>
-              </tr>
+              <Fragment key={u.id}>
+                <tr className="border-t border-gray-100">
+                  <td className="px-4 py-3 text-sm text-gray-800">{u.name}</td>
+                  <td className="px-4 py-3 text-sm text-gray-500">{u.email}</td>
+                  <td className="px-4 py-3 text-sm text-gray-500">
+                    {editingPhoneFor === u.id ? (
+                      <div className="flex items-center gap-1">
+                        <input
+                          value={phoneDraft}
+                          onChange={(e) => setPhoneDraft(e.target.value)}
+                          placeholder="+91XXXXXXXXXX"
+                          autoFocus
+                          className="w-32 text-sm border border-gray-200 rounded px-2 py-1"
+                        />
+                        <button onClick={() => savePhone(u)} className="text-xs text-brand-red hover:underline">
+                          Save
+                        </button>
+                        <button
+                          onClick={() => setEditingPhoneFor(null)}
+                          className="text-xs text-gray-400 hover:underline"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button onClick={() => startEditPhone(u)} className="hover:underline text-left">
+                        {u.phone || <span className="text-gray-300">— set phone —</span>}
+                      </button>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <select
+                      value={u.role}
+                      onChange={(e) => updateUser(u, { role: e.target.value as Role })}
+                      className="text-sm border border-gray-200 rounded px-2 py-1"
+                    >
+                      {ROLES.map((r) => (
+                        <option key={r} value={r}>
+                          {r}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="px-4 py-3 text-sm">
+                    <span className={u.status === "ACTIVE" ? "text-green-700" : "text-gray-400"}>{u.status}</span>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <button
+                      onClick={() => (siteAccessOpenFor === u.id ? setSiteAccessOpenFor(null) : openSiteAccess(u))}
+                      className="text-xs text-brand-red hover:underline mr-3"
+                    >
+                      {siteAccessOpenFor === u.id ? "Close site access" : "Site access"}
+                    </button>
+                    <button
+                      onClick={() => updateUser(u, { status: u.status === "ACTIVE" ? "SUSPENDED" : "ACTIVE" })}
+                      className="text-xs text-brand-red hover:underline"
+                    >
+                      {u.status === "ACTIVE" ? "Suspend" : "Reactivate"}
+                    </button>
+                  </td>
+                </tr>
+                {siteAccessOpenFor === u.id && (
+                  <tr className="border-t border-gray-100 bg-gray-50">
+                    <td colSpan={6} className="px-4 py-4">
+                      <p className="text-xs text-gray-500 mb-3">
+                        By default {u.name} uses their org-wide role (<strong>{u.role}</strong>) for every site. Set
+                        an override below to scope them to specific sites only — a site left on{" "}
+                        <em>Org default</em> follows the org-wide role; alerts for a site only reach this user if
+                        their effective role there is Org Admin or Site Manager.
+                      </p>
+                      {!sites ? (
+                        <p className="text-sm text-gray-400">Loading sites…</p>
+                      ) : sites.length === 0 ? (
+                        <p className="text-sm text-gray-400">No sites yet.</p>
+                      ) : (
+                        <div className="space-y-2 mb-3">
+                          {sites.map((s) => (
+                            <div key={s.id} className="flex items-center gap-3">
+                              <span className="text-sm text-gray-700 w-48 truncate">
+                                {s.name} <span className="text-gray-400">({s.godownCode})</span>
+                              </span>
+                              <select
+                                value={siteAccessDraft[s.id] ?? ""}
+                                onChange={(e) =>
+                                  setSiteAccessDraft((d) => ({ ...d, [s.id]: e.target.value as Role | "" }))
+                                }
+                                className="text-sm border border-gray-200 rounded px-2 py-1"
+                              >
+                                {SITE_ROLE_OPTIONS.map((r) => (
+                                  <option key={r || "default"} value={r}>
+                                    {r || "Org default"}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <button
+                        onClick={() => saveSiteAccess(u)}
+                        disabled={siteAccessSaving}
+                        className="px-3 py-1.5 bg-brand-red hover:bg-brand-red-dark disabled:opacity-60 text-white text-xs font-medium rounded-lg"
+                      >
+                        {siteAccessSaving ? "Saving…" : "Save site access"}
+                      </button>
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
             ))}
             {users?.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-gray-500">
+                <td colSpan={6} className="px-4 py-6 text-center text-gray-500">
                   No teammates yet.
                 </td>
               </tr>

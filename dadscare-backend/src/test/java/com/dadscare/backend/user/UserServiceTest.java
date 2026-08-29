@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.dadscare.backend.site.SiteRepository;
 import com.dadscare.backend.tenant.Organization;
 import com.dadscare.backend.tenant.OrganizationRepository;
 import com.dadscare.backend.tenant.TenantContext;
@@ -30,6 +31,12 @@ class UserServiceTest {
     private OrganizationRepository organizationRepository;
 
     @Mock
+    private UserSiteAccessRepository userSiteAccessRepository;
+
+    @Mock
+    private SiteRepository siteRepository;
+
+    @Mock
     private PasswordEncoder passwordEncoder;
 
     private UserService userService;
@@ -37,7 +44,8 @@ class UserServiceTest {
 
     @BeforeEach
     void setUp() {
-        userService = new UserService(userRepository, organizationRepository, passwordEncoder);
+        userService =
+                new UserService(userRepository, organizationRepository, userSiteAccessRepository, siteRepository, passwordEncoder);
 
         organization = new Organization();
         organization.setId(7L);

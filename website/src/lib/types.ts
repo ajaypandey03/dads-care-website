@@ -127,6 +127,13 @@ export interface CreateUserResponse {
   temporaryPassword: string | null;
 }
 
+/** A site-scoped role override for a user — absence means they use their org-wide role for every site. */
+export interface UserSiteAccess {
+  siteId: number;
+  siteName: string;
+  role: Role;
+}
+
 export interface Me {
   id: number;
   organizationId: number;
