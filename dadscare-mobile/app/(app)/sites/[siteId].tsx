@@ -51,24 +51,22 @@ export default function ShutterUnitsScreen() {
             )}
 
             {device ? (
-              <View className="flex-row mt-4" style={{ gap: 12 }}>
+              <>
                 <Link
                   href={{ pathname: "/(app)/devices/[deviceId]/[mode]", params: { deviceId: device.id, mode: "open" } }}
                   asChild
                 >
-                  <TouchableOpacity className="flex-1 bg-brand rounded-lg py-3 items-center">
+                  <TouchableOpacity className="bg-brand rounded-lg py-3 items-center mt-4">
                     <Text className="text-white font-semibold">Open Shutter</Text>
                   </TouchableOpacity>
                 </Link>
-                <Link
-                  href={{ pathname: "/(app)/devices/[deviceId]/[mode]", params: { deviceId: device.id, mode: "close" } }}
-                  asChild
-                >
-                  <TouchableOpacity className="flex-1 bg-gray-700 rounded-lg py-3 items-center">
-                    <Text className="text-white font-semibold">Close Shutter</Text>
-                  </TouchableOpacity>
-                </Link>
-              </View>
+                {/* This lock hardware only supports remote open — closing/sealing is a
+                    manual, on-site action, so a remote close command can never succeed
+                    (confirmed against real hardware, not a placeholder assumption). */}
+                <View className="bg-gray-100 rounded-lg py-3 items-center mt-2">
+                  <Text className="text-gray-400 font-medium text-sm">Close — manual only (on-site)</Text>
+                </View>
+              </>
             ) : (
               <Text className="text-sm text-gray-400 mt-3">No lock device assigned to this shutter yet.</Text>
             )}

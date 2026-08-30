@@ -29,8 +29,17 @@ export default function LoginScreen() {
     setServerError(null);
     try {
       await login(values.email, values.password);
-    } catch {
-      setServerError("Invalid email or password");
+    } catch (error: any) {
+      // error.response means the server actually answered (wrong credentials, a
+      // validation error, etc.) — anything else (no response at all) is a real
+      // connectivity problem, and telling the operator "invalid password" for that is
+      // actively misleading (found via a real CORS-blocked test: the request never left
+      // the device, yet the old code showed "Invalid email or password" regardless).
+      if (error?.response) {
+        setServerError("Invalid email or password");
+      } else {
+        setServerError("Couldn't reach the server. Check your connection and try again.");
+      }
     }
   };
 
