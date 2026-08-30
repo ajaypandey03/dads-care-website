@@ -490,19 +490,19 @@ function GodownPicker({ onPick }: { onPick: (site: Site, unit: ShutterUnit, comm
                 </p>
               </div>
               {unit.device ? (
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2">
                   <button
                     onClick={() => onPick(selectedSite, unit, "UNLOCK")}
                     className="text-xs px-3 py-1.5 rounded-lg bg-brand-red hover:bg-brand-red-dark text-white font-medium"
                   >
                     Open
                   </button>
-                  <button
-                    onClick={() => onPick(selectedSite, unit, "LOCK")}
-                    className="text-xs px-3 py-1.5 rounded-lg bg-brand-green hover:bg-brand-green-dark text-white font-medium"
+                  <span
+                    title="This lock only supports remote open — closing/sealing is a manual, on-site action on the physical lock itself."
+                    className="text-xs px-3 py-1.5 rounded-lg bg-gray-100 text-gray-400 font-medium cursor-not-allowed"
                   >
-                    Close
-                  </button>
+                    Close (manual only)
+                  </span>
                 </div>
               ) : (
                 <span className="text-xs text-gray-400">No device mapped — ask an admin to map one</span>

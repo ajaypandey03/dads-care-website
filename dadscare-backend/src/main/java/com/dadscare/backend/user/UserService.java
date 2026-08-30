@@ -34,6 +34,13 @@ public class UserService {
         user.setPushToken(request.token());
     }
 
+    @Transactional
+    public UserDto updateOwnPhone(UpdatePhoneRequest request) {
+        User user = requireCurrentUser();
+        user.setPhone(request.phone());
+        return UserDto.from(user);
+    }
+
     /** Self-service password change — no email/reset-link flow exists, so this is the only way in-app. */
     @Transactional
     public void changePassword(ChangePasswordRequest request) {

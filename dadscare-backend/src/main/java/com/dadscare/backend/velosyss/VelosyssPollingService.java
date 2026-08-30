@@ -16,23 +16,21 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * §5 of the Integration Guide is explicit that polling is "a reconciliation safety net,
- * not your primary signal" — real-time events still arrive via the webhook (see
- * WebhookController). This service implements that safety net two ways:
- * <ul>
- *   <li>{@link #pollPositions()} — {@code GET /locks/positions} on a short interval,
- *       purely to keep each {@link Device}'s online/battery/last-known-position cache
- *       fresh for the dashboard (§5: "the cheapest and recommended way to poll for
- *       current state"). Never produces an Alert — a missed SEAL_STATE transition is
- *       caught by the events poll below, not synthesized here, to avoid ever double
- *       counting the same physical transition under two different event ids.
- *   <li>{@link #pollEvents()} — {@code GET /locks/events?since=} on a longer interval,
- *       replayed through the exact same {@link WebhookService#ingest} path a live webhook
- *       uses. Safe even when a webhook for the same event already landed, because ingest
- *       dedupes on Velosyss's own {@code eventId} (§4.4) before doing anything else.
- * </ul>
- * Both are no-ops (fast return) when Velosyss isn't configured, so this is safe to run in
- * every environment including local dev.
+ * §5 of the Integration Guide describes polling as "a reconciliation safety net, not your
+ * primary signal" — real-time events were meant to arrive via the webhook (see
+ * WebhookController). In practice, against the real Velosyss API, neither the webhook nor
+ * {@link #pollEvents()}'s {@code GET /locks/events} replay has ever actually delivered a
+ * usable {@code SEAL_STATE}/{@code COMMAND_RESULT} event (see this class's git history/
+ * commit messages) — the events endpoint's real response shape doesn't match the
+ * documented contract at all. {@link #pollPositions()}'s {@code GET /locks/positions} is
+ * the only signal that has proven reliable, so despite the original design intent, it is
+ * now the primary signal in this deployment: on top of refreshing each {@link Device}'s
+ * online/battery/position cache, it detects an actual {@code sealed} transition and
+ * synthesizes the same {@code SEAL_STATE} event a real webhook would have delivered,
+ * through the exact same {@link WebhookService#ingest} path — so RawEvent history, Alert
+ * classification, and WhatsApp/push notifications all still fire correctly from this
+ * signal. {@link #pollEvents()} is kept as a genuine backstop in case Velosyss's events
+ * feed ever does start matching the documented shape.
  */
 @Slf4j
 @Service
@@ -68,6 +66,8 @@ public class VelosyssPollingService {
             if (device == null) {
                 continue; // Not (yet) mapped to a Dad's Care device — nothing to reconcile.
             }
+            Boolean previousSealed = device.getLastSealed();
+
             device.setOnline(Boolean.TRUE.equals(position.isOnline()));
             if (position.lastDeviceTime() != null) {
                 device.setLastSeenAt(VelosyssReadClient.toInstantUtc(position.lastDeviceTime()));
@@ -83,8 +83,42 @@ public class VelosyssPollingService {
             // Fallback for when Velosyss's COMMAND_RESULT never arrives (webhook or events
             // poll) — see UnlockRequestService#reconcileFromObservedSealState's own comment.
             unlockRequestService.reconcileFromObservedSealState(device.getId(), position.sealed());
+
+            emitSyntheticSealStateOnTransition(device, previousSealed, position);
         }
         deviceRepository.saveAll(devicesByTerminalId.values());
+    }
+
+    /**
+     * A real sealed-state change observed only via the positions poll would otherwise
+     * never produce a RawEvent/Alert/notification at all (see this class's own javadoc) —
+     * this reconstructs the SEAL_STATE event a working webhook would have sent, so the
+     * rest of the pipeline (RulesEngineService classification, NotificationDispatcher)
+     * still fires. Skipped on the very first sighting of a device ({@code previousSealed
+     * == null}) — that's not a transition, just this poll cycle learning its initial
+     * state, and treating it as one would fire a spurious alert every time the app
+     * restarts.
+     */
+    private void emitSyntheticSealStateOnTransition(
+            Device device, Boolean previousSealed, VelosyssReadClient.PositionDto position) {
+        if (previousSealed == null || position.sealed() == null || previousSealed.equals(position.sealed())) {
+            return;
+        }
+        var event = new VelosyssWebhookEvent(
+                "poll-" + device.getId() + "-" + System.currentTimeMillis(),
+                VelosyssWebhookEvent.EventType.SEAL_STATE,
+                null,
+                device.getVelosyssTerminalId(),
+                null,
+                null,
+                position.sealed(),
+                position.shackleClosed(),
+                null,
+                null,
+                null,
+                null,
+                null);
+        webhookService.ingest(event);
     }
 
     /**

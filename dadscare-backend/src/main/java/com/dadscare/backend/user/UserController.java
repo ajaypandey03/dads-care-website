@@ -25,6 +25,12 @@ public class UserController {
         userService.registerPushToken(request);
     }
 
+    /** The number WhatsApp alerts go to — see {@link UpdatePhoneRequest}'s own javadoc. */
+    @PutMapping("/phone")
+    public UserDto updatePhone(@RequestBody UpdatePhoneRequest request) {
+        return userService.updateOwnPhone(request);
+    }
+
     @PutMapping("/password")
     public void changePassword(@Valid @RequestBody ChangePasswordRequest request) {
         userService.changePassword(request);
