@@ -151,6 +151,11 @@ export interface Organization {
   codePrefix: string;
   active: boolean;
   createdAt: string;
+  /** WhatsApp alert template's "Dear {{...}}," value — e.g. "Customer". */
+  whatsappSalutation: string;
+  /** WhatsApp alert template's "CFA-{{...}}" value. Never blank — WhatsApp rejects an
+   *  empty variable, so this is "-" when there's no CFA name to show. */
+  whatsappCfaName: string;
 }
 
 export interface CreateOrganizationResponse {

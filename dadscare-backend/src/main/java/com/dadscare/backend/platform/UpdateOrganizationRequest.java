@@ -16,4 +16,10 @@ public record UpdateOrganizationRequest(
                 @Pattern(regexp = "^[A-Z0-9]+$", message = "codePrefix must be uppercase letters/digits, e.g. \"AC\"")
                 @Size(max = 10)
                 String codePrefix,
-        @NotNull Boolean active) {}
+        @NotNull Boolean active,
+        /** "Dear {{whatsappSalutation}}," in the WhatsApp alert template — e.g. "Customer". */
+        @NotBlank @Size(max = 100) String whatsappSalutation,
+        /** "CFA-{{whatsappCfaName}}" in the WhatsApp alert template. WhatsApp rejects a
+         * blank/whitespace-only variable value, so this can't be left truly empty — use
+         * "-" when there's no CFA name to show. */
+        @NotBlank @Size(max = 255) String whatsappCfaName) {}

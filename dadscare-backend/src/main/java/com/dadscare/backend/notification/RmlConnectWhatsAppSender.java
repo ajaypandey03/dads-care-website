@@ -1,10 +1,12 @@
 package com.dadscare.backend.notification;
 
 import com.dadscare.backend.alert.Alert;
+import com.dadscare.backend.alert.AlertClassification;
 import com.dadscare.backend.alert.EventDirection;
 import com.dadscare.backend.site.Device;
 import com.dadscare.backend.site.Site;
 import com.dadscare.backend.telemetry.RawEvent;
+import com.dadscare.backend.tenant.Organization;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -24,12 +26,19 @@ import org.springframework.web.client.RestClientResponseException;
  * <p>WhatsApp's Business API requires a pre-approved template for any business-initiated
  * message (i.e. every alert — these are never a reply inside a customer's own 24-hour
  * session), so unlike every other channel here this one does <em>not</em> send {@link
- * Notification#getBody()}'s free-text — it builds the template's 8 body variables
- * straight from the {@link Alert}. The mapping below matches the approved template's
- * variable order exactly (see the template preview: eLockID, Warehouse Incharge,
- * Destination, District, Warehouse Point, Alert, Time, Place) but Dad's Care's data model
- * has no explicit "district" or "incharge" field, so those two are best-effort — adjust
- * {@link #buildBodyParams} once real field names/expectations are confirmed.
+ * Notification#getBody()}'s free-text — it builds the template's 10 body variables
+ * straight from the {@link Alert}. The mapping below matches the "template_with_cfa"
+ * approved template's variable order exactly: Salutation, Greeting/Org name, Warehouse
+ * Incharge, Location, District, Alert, Time, Any Exceptions, eLockID, CFA name. (The
+ * footer "Tech Support-DAD'S CARE Logistics Solutions Pvt Ltd." is static text in the
+ * approved template, not a variable.) Dad's Care's data model has no explicit "district",
+ * "incharge" or "CFA name" field, so those are best-effort — adjust {@link
+ * #buildBodyParams} once real field names/expectations are confirmed. "Any Exceptions" is
+ * derived from {@link Alert#getClassification()}: CONFIRMED (operated via the app) reports
+ * "No", the UNEXPLAINED_* classifications report "Yes". Salutation and CFA name are
+ * per-organization settings ({@link com.dadscare.backend.tenant.Organization#getWhatsappSalutation()}
+ * / {@code #getWhatsappCfaName()}), editable by Dad's Care platform admins — WhatsApp
+ * rejects a blank/whitespace variable value, so CFA name can't be sent truly empty.
  */
 @Slf4j
 @Component
@@ -105,36 +114,43 @@ public class RmlConnectWhatsAppSender implements NotificationChannelSender {
         }
     }
 
-    /** Order matches the approved template's {{1}}..{{8}} exactly — see this class's own javadoc. */
+    /** Order matches the approved template's {{1}}..{{10}} exactly — see this class's own javadoc. */
     private List<TextParam> buildBodyParams(Alert alert) {
         RawEvent event = alert.getRawEvent();
         Device device = alert.getDevice();
         Site site = device.getShutterUnit() != null ? device.getShutterUnit().getSite() : null;
 
-        String eLockId = device.getVelosyssTerminalId() != null
-                ? device.getVelosyssTerminalId()
-                : device.getVelosyssDeviceRef();
+        Organization organization = alert.getOrganization();
+        String salutation = organization != null ? organization.getWhatsappSalutation() : "Customer";
+        String greetingFrom = organization != null ? organization.getName() : "Dad's Care";
         String incharge = alert.getUnlockRequest() != null && alert.getUnlockRequest().getRequestedBy() != null
                 ? alert.getUnlockRequest().getRequestedBy().getName()
                 : "-";
-        String destination = site != null ? site.getName() : "-";
-        String district = site != null && site.getAddress() != null ? site.getAddress() : "-";
-        String warehousePoint = site != null ? site.getGodownCode() : device.getVelosyssDeviceRef();
+        String location = site != null ? "Cement Godown - " + site.getName() : "-";
+        String district = site != null && site.getAddress() != null
+                ? site.getAddress() + ", Madhya Pradesh, India"
+                : "-";
         String alertText = alert.getDirection() == EventDirection.ALARM
                 ? "Alarm: " + event.getAlarmCode()
                 : "Lock status " + (alert.getDirection() == EventDirection.OPEN ? "Open" : "Closed");
         String time = TIME_FORMAT.format(event.getEventTimestamp());
-        String place = "Warehouse Point: " + warehousePoint;
+        String anyExceptions = alert.getClassification() == AlertClassification.CONFIRMED ? "No" : "Yes";
+        String eLockId = device.getVelosyssTerminalId() != null
+                ? device.getVelosyssTerminalId()
+                : device.getVelosyssDeviceRef();
+        String cfaName = organization != null ? organization.getWhatsappCfaName() : "-";
 
         return List.of(
-                new TextParam(eLockId),
+                new TextParam(salutation),
+                new TextParam(greetingFrom),
                 new TextParam(incharge),
-                new TextParam(destination),
+                new TextParam(location),
                 new TextParam(district),
-                new TextParam(warehousePoint),
                 new TextParam(alertText),
                 new TextParam(time),
-                new TextParam(place));
+                new TextParam(anyExceptions),
+                new TextParam(eLockId),
+                new TextParam(cfaName));
     }
 
     private record TextParam(String text) {}

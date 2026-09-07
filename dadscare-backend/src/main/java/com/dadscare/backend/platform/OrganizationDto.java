@@ -4,7 +4,14 @@ import com.dadscare.backend.tenant.Organization;
 import java.time.Instant;
 
 public record OrganizationDto(
-        Long id, String name, String slug, String codePrefix, boolean active, Instant createdAt) {
+        Long id,
+        String name,
+        String slug,
+        String codePrefix,
+        boolean active,
+        Instant createdAt,
+        String whatsappSalutation,
+        String whatsappCfaName) {
 
     public static OrganizationDto from(Organization entity) {
         return new OrganizationDto(
@@ -13,6 +20,8 @@ public record OrganizationDto(
                 entity.getSlug(),
                 entity.getCodePrefix(),
                 entity.isActive(),
-                entity.getCreatedAt());
+                entity.getCreatedAt(),
+                entity.getWhatsappSalutation(),
+                entity.getWhatsappCfaName());
     }
 }
