@@ -90,6 +90,8 @@ public class PlatformOrganizationService {
         organization.setName(request.name());
         organization.setCodePrefix(request.codePrefix());
         organization.setActive(request.active());
+        organization.setWhatsappSalutation(request.whatsappSalutation());
+        organization.setWhatsappCfaName(request.whatsappCfaName());
         return OrganizationDto.from(organization);
     }
 

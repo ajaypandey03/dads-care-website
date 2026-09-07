@@ -33,4 +33,15 @@ public class Organization extends BaseEntity {
 
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
+
+    /**
+     * WhatsApp alert template values this org's data model has no field for — see
+     * {@code RmlConnectWhatsAppSender}'s javadoc. Editable by Dad's Care platform admins
+     * via the organization management screen.
+     */
+    @Column(name = "whatsapp_salutation", nullable = false, length = 100)
+    private String whatsappSalutation = "Customer";
+
+    @Column(name = "whatsapp_cfa_name", nullable = false)
+    private String whatsappCfaName = "-";
 }

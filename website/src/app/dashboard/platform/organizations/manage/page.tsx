@@ -14,6 +14,8 @@ function OrganizationDetailsForm({ org, onUpdated }: { org: Organization; onUpda
   const [name, setName] = useState(org.name);
   const [codePrefix, setCodePrefix] = useState(org.codePrefix);
   const [active, setActive] = useState(org.active);
+  const [whatsappSalutation, setWhatsappSalutation] = useState(org.whatsappSalutation);
+  const [whatsappCfaName, setWhatsappCfaName] = useState(org.whatsappCfaName);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -28,6 +30,8 @@ function OrganizationDetailsForm({ org, onUpdated }: { org: Organization; onUpda
         name,
         codePrefix: codePrefix.toUpperCase(),
         active,
+        whatsappSalutation,
+        whatsappCfaName,
       });
       onUpdated(updated);
       setSaved(true);
@@ -80,6 +84,41 @@ function OrganizationDetailsForm({ org, onUpdated }: { org: Organization; onUpda
           />
           Organization is active
         </label>
+
+        <h3 className="sm:col-span-2 text-sm font-semibold text-gray-700 mt-2">WhatsApp alert template</h3>
+        <p className="sm:col-span-2 text-xs text-gray-500 -mt-2">
+          Fills in the parts of the approved WhatsApp alert template this org&apos;s data has no field for.
+        </p>
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">Salutation (&quot;Dear ___,&quot;)</label>
+          <input
+            value={whatsappSalutation}
+            onChange={(e) => {
+              setWhatsappSalutation(e.target.value);
+              setSaved(false);
+            }}
+            placeholder="Customer"
+            required
+            maxLength={100}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-brand-red"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">CFA name (&quot;CFA-___&quot;)</label>
+          <input
+            value={whatsappCfaName}
+            onChange={(e) => {
+              setWhatsappCfaName(e.target.value);
+              setSaved(false);
+            }}
+            placeholder="-"
+            required
+            maxLength={255}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-brand-red"
+          />
+          <p className="text-xs text-gray-400 mt-1">WhatsApp won&apos;t allow this blank — use &quot;-&quot; if there&apos;s none.</p>
+        </div>
+
         <button
           type="submit"
           disabled={saving}
